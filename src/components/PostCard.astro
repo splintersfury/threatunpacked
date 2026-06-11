@@ -6,64 +6,89 @@ interface Props {
   description: string;
   pubDate: Date;
   fileName: string;
+  image?: string;
   series?: string;
   seriesPart?: number;
   readingTime?: number;
 }
-const { href, title, description, pubDate, fileName, series, seriesPart, readingTime } = Astro.props;
+const { href, title, description, pubDate, fileName, image, series, seriesPart, readingTime } = Astro.props;
+const initials = fileName.replace(/\.md$/, '').slice(0, 2).toUpperCase();
 ---
 <article class="row reveal">
   <a href={href} class="row-link" aria-label={title}></a>
-  <div class="ls">
-    <span class="date">[{isoDate(pubDate)}]</span>
-    <span class="prompt">$</span>
-    <span class="file">{fileName}</span>
-    <span class="leader" aria-hidden="true"></span>
-    {readingTime && <span class="rt">{readingTime}m</span>}
-    <span class="arrow" aria-hidden="true">▸</span>
+  <div class="thumb">
+    {image
+      ? <img src={image} alt="" loading="lazy" />
+      : <span class="ph" aria-hidden="true">{initials}</span>}
   </div>
-  <h2 class="title">{title}</h2>
-  <p class="desc">{description}</p>
-  {series && <span class="tag">{series}{seriesPart ? ` · part ${seriesPart}` : ''}</span>}
+  <div class="content">
+    <div class="ls">
+      <span class="date">[{isoDate(pubDate)}]</span>
+      <span class="prompt">$</span>
+      <span class="file">{fileName}</span>
+      {series && <span class="tag">{seriesPart ? `part ${seriesPart}` : series}</span>}
+    </div>
+    <h2 class="title">{title}</h2>
+    <p class="desc">{description}</p>
+    <div class="foot">
+      {readingTime && <span class="rt">{readingTime} min</span>}
+      <span class="read">read <span class="arrow" aria-hidden="true">▸</span></span>
+    </div>
+  </div>
 </article>
 
 <style>
   .row {
     position: relative;
-    padding: 1.35rem 1.1rem 1.4rem;
-    border: 1px solid transparent;
-    border-bottom: 1px solid var(--line);
+    display: grid; grid-template-columns: 96px 1fr; gap: 1.2rem;
+    padding: 1.3rem 1.1rem;
+    border: 1px solid var(--line);
     border-radius: var(--radius);
-    transition: border-color .15s, background .15s;
+    background: var(--bg-soft);
+    transition: border-color .15s, transform .15s, box-shadow .15s;
   }
-  .row:hover { background: var(--bg-soft); border-color: var(--line-strong); }
+  .row:hover { border-color: var(--accent-line); transform: translateY(-2px); box-shadow: var(--shadow); }
   .row-link { position: absolute; inset: 0; z-index: 1; }
 
-  .ls {
-    display: flex; align-items: center; gap: 0.5rem;
-    font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted);
-    margin-bottom: 0.55rem;
+  .thumb {
+    width: 96px; height: 96px; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--line-strong); background: var(--code-bg);
+    display: grid; place-items: center;
   }
-  .date { color: var(--ink-soft); }
-  .prompt { color: var(--accent); }
-  .file { color: var(--accent); }
-  .row:hover .file { text-shadow: var(--glow-soft); }
-  .leader { flex: 1; border-bottom: 1px dotted var(--line-strong); transform: translateY(-3px); min-width: 1.5rem; }
-  .rt { color: var(--muted); }
-  .arrow { color: var(--muted); transition: transform .15s, color .15s; }
-  .row:hover .arrow { color: var(--accent); transform: translateX(3px); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s; }
+  .row:hover .thumb img { transform: scale(1.06); }
+  .ph {
+    font-family: var(--font-mono); font-size: 1.7rem; font-weight: 700;
+    color: var(--accent); opacity: 0.55; letter-spacing: 0.05em;
+    text-shadow: var(--glow-soft);
+  }
 
-  .title { font-size: 1.32rem; margin: 0 0 0.4rem; line-height: 1.25; transition: color .15s; }
-  .row:hover .title { color: var(--accent); }
-  .desc { margin: 0; color: var(--ink-soft); font-size: 0.94rem; line-height: 1.6; }
-  .tag {
-    display: inline-block; margin-top: 0.7rem;
-    font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.04em;
-    color: var(--accent); background: var(--accent-dim);
-    padding: 0.15rem 0.5rem; border-radius: 4px;
+  .ls {
+    display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted);
+    margin-bottom: 0.4rem;
   }
+  .ls .date { color: var(--ink-soft); }
+  .ls .prompt { color: var(--accent); }
+  .ls .file { color: var(--accent); }
+  .row:hover .file { text-shadow: var(--glow-soft); }
+  .tag {
+    color: var(--accent2); background: var(--accent2-dim);
+    padding: 0.05rem 0.45rem; border-radius: 4px; letter-spacing: 0.03em;
+  }
+
+  .title { font-size: 1.24rem; margin: 0 0 0.35rem; line-height: 1.25; transition: color .15s; }
+  .row:hover .title { color: var(--accent); }
+  .desc { margin: 0 0 0.6rem; color: var(--ink-soft); font-size: 0.92rem; line-height: 1.55;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .foot { display: flex; align-items: center; gap: 0.8rem; font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted); }
+  .read { color: var(--accent); }
+  .arrow { transition: transform .15s; display: inline-block; }
+  .row:hover .arrow { transform: translateX(3px); }
+
   @media (max-width: 560px) {
-    .ls { flex-wrap: wrap; gap: 0.4rem; }
-    .leader { display: none; }
+    .row { grid-template-columns: 64px 1fr; gap: 0.9rem; padding: 1rem; }
+    .thumb { width: 64px; height: 64px; }
+    .desc { -webkit-line-clamp: 3; }
   }
 </style>

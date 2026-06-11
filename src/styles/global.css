@@ -16,10 +16,13 @@
   --muted: #69727e;
   --line: rgba(255, 255, 255, 0.08);
   --line-strong: rgba(255, 255, 255, 0.15);
-  --accent: #ffb000;            /* amber phosphor */
+  --accent: #ffb000;            /* amber phosphor — primary signal */
   --accent-soft: #ffc94d;
   --accent-dim: rgba(255, 176, 0, 0.13);
   --accent-line: rgba(255, 176, 0, 0.35);
+  --accent2: #4ec9a8;           /* teal-green — secondary signal */
+  --accent2-dim: rgba(78, 201, 168, 0.14);
+  --cyan: #5bc8ff;              /* tertiary, sparing use */
   --glow: 0 0 16px rgba(255, 176, 0, 0.35);
   --glow-soft: 0 0 8px rgba(255, 176, 0, 0.25);
   --code-bg: #0c0f14;
@@ -45,6 +48,9 @@
   --accent-soft: #9a4509;
   --accent-dim: rgba(185, 84, 11, 0.10);
   --accent-line: rgba(185, 84, 11, 0.3);
+  --accent2: #0f7d63;           /* teal-green, light-mode contrast */
+  --accent2-dim: rgba(15, 125, 99, 0.10);
+  --cyan: #0b6fa8;
   --glow: none;
   --glow-soft: none;
   --code-bg: #14171d;

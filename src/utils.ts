@@ -21,6 +21,14 @@ export function fileName(post: CollectionEntry<'posts'>): string {
   return s.split('-').slice(0, 3).join('-') + '.md';
 }
 
+// First image referenced anywhere in the post — used as a thumbnail when
+// there's no explicit heroImage, so every card has a visual.
+export function thumbFor(post: CollectionEntry<'posts'>): string | undefined {
+  if (post.data.heroImage) return post.data.heroImage;
+  const m = post.body.match(/\]\((\/images\/[^)\s]+)/);
+  return m ? m[1] : undefined;
+}
+
 // YYYY-MM-DD for mono metadata rows. Uses local date parts so it doesn't
 // shift a day across timezones (the way toISOString() would).
 export function isoDate(d: Date): string {
