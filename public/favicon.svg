@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#131419"/>
-  <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle"
-        font-family="Georgia, serif" font-size="40" font-weight="600" fill="#d34d2e">⌗</text>
+  <rect width="64" height="64" rx="12" fill="#0a0c10"/>
+  <text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle"
+        font-family="ui-monospace, Menlo, monospace" font-size="30" font-weight="700" fill="#ffb000">&gt;_</text>
 </svg>

@@ -12,3 +12,18 @@ export function postHref(post: CollectionEntry<'posts'>): string {
 export function byDateDesc(a: CollectionEntry<'posts'>, b: CollectionEntry<'posts'>): number {
   return b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
 }
+
+// A short, terminal-flavored "filename" for a post (decorative).
+export function fileName(post: CollectionEntry<'posts'>): string {
+  if (post.data.seriesPart) return `driver-analyzer-pt${post.data.seriesPart}.md`;
+  const s = post.slug;
+  if (s.includes('netfilter')) return 'netfilter-driver.md';
+  return s.split('-').slice(0, 3).join('-') + '.md';
+}
+
+// YYYY-MM-DD for mono metadata rows. Uses local date parts so it doesn't
+// shift a day across timezones (the way toISOString() would).
+export function isoDate(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}

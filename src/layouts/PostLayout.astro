@@ -1,6 +1,7 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import FormattedDate from '../components/FormattedDate.astro';
+import { fileName } from '../utils';
 import type { CollectionEntry } from 'astro:content';
 
 interface Props {
@@ -12,16 +13,15 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
 ---
 <BaseLayout title={title} description={description} image={heroImage} article={true}>
   <article class="post">
-    <header class="post-head">
-      <div class="wrap">
-        {series && <p class="eyebrow">{series}{seriesPart ? ` — Part ${seriesPart}` : ''}</p>}
-        <h1>{title}</h1>
-        <div class="post-meta">
-          <FormattedDate date={pubDate} />
-          <span class="sep">·</span>
-          <span>{readingTime} min read</span>
-          {updatedDate && <><span class="sep">·</span><span>Updated <FormattedDate date={updatedDate} /></span></>}
-        </div>
+    <header class="post-head wrap">
+      <p class="cmd"><span class="dollar">$</span> cat {fileName(post)}</p>
+      {series && <p class="eyebrow">{series}{seriesPart ? ` — part ${seriesPart}` : ''}</p>}
+      <h1>{title}</h1>
+      <div class="post-meta">
+        <span class="mk"># </span><FormattedDate date={pubDate} />
+        <span class="sep">·</span>
+        <span>{readingTime} min read</span>
+        {updatedDate && <><span class="sep">·</span><span>updated <FormattedDate date={updatedDate} /></span></>}
       </div>
     </header>
 
@@ -36,24 +36,26 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
     </div>
 
     <div class="wrap post-foot">
-      <a href="/" class="back">← All writing</a>
+      <a href="/" class="back">$ cd ..</a>
     </div>
   </article>
 </BaseLayout>
 
 <style>
-  .post-head { padding: 3rem 0 1.5rem; text-align: center; }
+  .post-head { padding: 3rem 0 1.5rem; }
+  .cmd { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); margin: 0 0 1.2rem; }
+  .cmd .dollar { color: var(--accent); }
   .post-head h1 { margin: 0.3rem 0 0.9rem; }
   .post-meta {
-    font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted);
-    display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted);
+    display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
   }
+  .post-meta .mk { color: var(--accent); opacity: 0.6; }
   .post-meta .sep { opacity: 0.5; }
-  .hero-figure { margin: 1.5rem auto 2.5rem; }
-  .hero-figure img { width: 100%; max-height: 460px; object-fit: cover; box-shadow: var(--shadow); }
-  .prose { font-size: 1.06rem; }
-  .prose :global(h2:first-child),
-  .prose :global(h3:first-child) { margin-top: 0; }
-  .post-foot { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
-  .back { font-family: var(--font-mono); font-size: 0.85rem; }
+  .hero-figure { margin: 1.2rem auto 2.5rem; }
+  .hero-figure img { width: 100%; max-height: 440px; object-fit: cover; border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
+  .prose { font-size: 1.05rem; }
+  .prose :global(h2:first-child), .prose :global(h3:first-child) { margin-top: 0; }
+  .post-foot { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px dashed var(--line-strong); }
+  .back { font-family: var(--font-mono); font-size: 0.83rem; }
 </style>

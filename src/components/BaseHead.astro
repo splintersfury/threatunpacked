@@ -1,7 +1,6 @@
 ---
 // Global <head>: fonts, meta, Open Graph, and the no-flash theme script.
 import '@fontsource-variable/inter';
-import '@fontsource-variable/fraunces';
 import '@fontsource-variable/jetbrains-mono';
 import '../styles/global.css';
 
@@ -35,13 +34,12 @@ const ogImage = image ? new URL(image, Astro.site) : undefined;
 <meta name="twitter:description" content={description} />
 {ogImage && <meta name="twitter:image" content={ogImage} />}
 
-<meta name="theme-color" content="#131419" />
+<meta name="theme-color" content="#0a0c10" />
 
 <script is:inline>
-  // Set theme before paint to avoid a flash.
+  // Terminal theme is dark by default; honor a saved preference.
   (() => {
     const stored = localStorage.getItem('theme');
-    const theme = stored || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.theme = stored || 'dark';
   })();
 </script>

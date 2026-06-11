@@ -4,49 +4,48 @@ const year = new Date().getFullYear();
 <footer class="site-footer">
   <div class="wrap-wide cols">
     <div class="col brand-col">
-      <div class="f-brand"><span aria-hidden="true">⌗</span> Threat Unpacked</div>
+      <div class="f-brand"><span class="prompt">&gt;_</span> threat<span class="accent">_unpacked</span></div>
       <p class="f-tag">Deep dives into incidents, implants, and intrusion sets. Operational malware analysis, written to matter during a response.</p>
     </div>
     <div class="col">
-      <h4>Site</h4>
-      <a href="/">Writing</a>
-      <a href="/featured-investigations">Investigations</a>
-      <a href="/about">About</a>
-      <a href="/rss.xml">RSS</a>
+      <h4>// site</h4>
+      <a href="/">writing</a>
+      <a href="/featured-investigations">investigations</a>
+      <a href="/about">about</a>
+      <a href="/rss.xml">rss</a>
     </div>
     <div class="col">
-      <h4>Elsewhere</h4>
-      <a href="https://github.com/splintersfury" rel="me">GitHub</a>
-      <a href="https://splintersfury.github.io/KernelSight/">KernelSight</a>
+      <h4>// elsewhere</h4>
+      <a href="https://github.com/splintersfury" rel="me">github</a>
+      <a href="https://splintersfury.github.io/KernelSight/">kernelsight</a>
     </div>
   </div>
   <div class="wrap-wide bottom">
-    <span>© {year} Threat Unpacked</span>
-    <span class="dot">·</span>
-    <span>Written by splintersfury</span>
+    <span class="prompt">$</span>
+    <span>echo "© {year} threat unpacked · written by splintersfury"</span>
   </div>
 </footer>
 
 <style>
   .site-footer {
     margin-top: 5rem;
-    background: var(--night);
-    color: var(--night-ink);
-    padding: 3.5rem 0 2rem;
+    background: var(--bg-soft);
+    border-top: 1px solid var(--line-strong);
+    padding: 3.2rem 0 2rem;
   }
   .cols { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 2.5rem; }
-  .f-brand { font-family: var(--font-serif); font-size: 1.25rem; font-weight: 600; }
-  .f-brand span { color: var(--accent); }
-  .f-tag { color: var(--night-muted); font-size: 0.92rem; max-width: 34ch; line-height: 1.65; }
-  .col h4 { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--night-muted); margin: 0 0 0.9rem; }
-  .col a { display: block; color: var(--night-ink); opacity: 0.85; font-size: 0.92rem; padding: 0.22rem 0; }
-  .col a:hover { color: var(--accent); opacity: 1; text-decoration: none; }
+  .f-brand { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; color: var(--ink); }
+  .f-brand .prompt, .f-brand .accent { color: var(--accent); }
+  .f-tag { color: var(--muted); font-size: 0.9rem; max-width: 36ch; line-height: 1.65; margin-top: 0.7rem; }
+  .col h4 { font-family: var(--font-mono); font-size: 0.74rem; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 0.8rem; font-weight: 500; }
+  .col a { display: block; font-family: var(--font-mono); color: var(--ink-soft); font-size: 0.86rem; padding: 0.22rem 0; }
+  .col a:hover { color: var(--accent); text-decoration: none; }
   .bottom {
-    margin-top: 2.5rem; padding-top: 1.5rem;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    color: var(--night-muted); font-size: 0.82rem;
-    display: flex; gap: 0.6rem; align-items: center;
+    margin-top: 2.5rem; padding-top: 1.4rem;
+    border-top: 1px solid var(--line);
+    font-family: var(--font-mono); color: var(--muted); font-size: 0.78rem;
+    display: flex; gap: 0.5rem; align-items: center;
   }
-  .dot { opacity: 0.5; }
+  .bottom .prompt { color: var(--accent); }
   @media (max-width: 640px) { .cols { grid-template-columns: 1fr; gap: 2rem; } }
 </style>
