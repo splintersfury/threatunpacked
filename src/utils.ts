@@ -24,6 +24,7 @@ export function fileName(post: CollectionEntry<'posts'>): string {
 // First image referenced anywhere in the post — used as a thumbnail when
 // there's no explicit heroImage, so every card has a visual.
 export function thumbFor(post: CollectionEntry<'posts'>): string | undefined {
+  if (post.data.thumb) return post.data.thumb;
   if (post.data.heroImage) return post.data.heroImage;
   const m = post.body.match(/\]\((\/images\/[^)\s]+)/);
   return m ? m[1] : undefined;

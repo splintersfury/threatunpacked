@@ -15,6 +15,9 @@ const posts = defineCollection({
     // so existing links and search results keep working.
     permalink: z.string(),
     heroImage: z.string().optional(),
+    // Card thumbnail only (does NOT render as a cover on the post page).
+    // Use when you want a homepage thumbnail without a duplicate top image.
+    thumb: z.string().optional(),
     series: z.string().optional(),
     seriesPart: z.number().optional(),
     tags: z.array(z.string()).default([]),
