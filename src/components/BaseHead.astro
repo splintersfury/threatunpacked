@@ -1,0 +1,47 @@
+---
+// Global <head>: fonts, meta, Open Graph, and the no-flash theme script.
+import '@fontsource-variable/inter';
+import '@fontsource-variable/fraunces';
+import '@fontsource-variable/jetbrains-mono';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  image?: string;
+  article?: boolean;
+}
+const { title, description = 'Operational malware analysis — deep dives into incidents, implants, and intrusion sets.', image, article = false } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const ogImage = image ? new URL(image, Astro.site) : undefined;
+---
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="canonical" href={canonical} />
+<link rel="sitemap" href="/sitemap-index.xml" />
+<link rel="alternate" type="application/rss+xml" title="Threat Unpacked" href="/rss.xml" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+<title>{title}</title>
+<meta name="description" content={description} />
+
+<meta property="og:type" content={article ? 'article' : 'website'} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+{ogImage && <meta property="og:image" content={ogImage} />}
+<meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+{ogImage && <meta name="twitter:image" content={ogImage} />}
+
+<meta name="theme-color" content="#131419" />
+
+<script is:inline>
+  // Set theme before paint to avoid a flash.
+  (() => {
+    const stored = localStorage.getItem('theme');
+    const theme = stored || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.dataset.theme = theme;
+  })();
+</script>

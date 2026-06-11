@@ -1,0 +1,59 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import FormattedDate from '../components/FormattedDate.astro';
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  post: CollectionEntry<'posts'>;
+  readingTime: number;
+}
+const { post, readingTime } = Astro.props;
+const { title, description, pubDate, updatedDate, heroImage, series, seriesPart } = post.data;
+---
+<BaseLayout title={title} description={description} image={heroImage} article={true}>
+  <article class="post">
+    <header class="post-head">
+      <div class="wrap">
+        {series && <p class="eyebrow">{series}{seriesPart ? ` — Part ${seriesPart}` : ''}</p>}
+        <h1>{title}</h1>
+        <div class="post-meta">
+          <FormattedDate date={pubDate} />
+          <span class="sep">·</span>
+          <span>{readingTime} min read</span>
+          {updatedDate && <><span class="sep">·</span><span>Updated <FormattedDate date={updatedDate} /></span></>}
+        </div>
+      </div>
+    </header>
+
+    {heroImage && (
+      <div class="hero-figure wrap-wide">
+        <img src={heroImage} alt="" />
+      </div>
+    )}
+
+    <div class="wrap prose">
+      <slot />
+    </div>
+
+    <div class="wrap post-foot">
+      <a href="/" class="back">← All writing</a>
+    </div>
+  </article>
+</BaseLayout>
+
+<style>
+  .post-head { padding: 3rem 0 1.5rem; text-align: center; }
+  .post-head h1 { margin: 0.3rem 0 0.9rem; }
+  .post-meta {
+    font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted);
+    display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;
+  }
+  .post-meta .sep { opacity: 0.5; }
+  .hero-figure { margin: 1.5rem auto 2.5rem; }
+  .hero-figure img { width: 100%; max-height: 460px; object-fit: cover; box-shadow: var(--shadow); }
+  .prose { font-size: 1.06rem; }
+  .prose :global(h2:first-child),
+  .prose :global(h3:first-child) { margin-top: 0; }
+  .post-foot { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  .back { font-family: var(--font-mono); font-size: 0.85rem; }
+</style>

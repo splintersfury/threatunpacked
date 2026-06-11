@@ -1,0 +1,21 @@
+---
+import { getEntry } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const entry = await getEntry('pages', 'featured-investigations');
+const { Content } = await entry.render();
+---
+<BaseLayout title="Featured Investigations" description="Selected vulnerability research and malware analysis.">
+  <div class="wrap page">
+    <p class="eyebrow">Selected Work</p>
+    <h1>Featured Investigations</h1>
+    <div class="prose">
+      <Content />
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .page { padding: 3.5rem 1.5rem 1rem; }
+  .page h1 { margin: 0.3rem 0 1.5rem; }
+</style>

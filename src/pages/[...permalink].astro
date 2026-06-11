@@ -1,0 +1,21 @@
+---
+import { getCollection } from 'astro:content';
+import PostLayout from '../layouts/PostLayout.astro';
+import { readingTime } from '../utils';
+
+// Generate each post at its original WordPress permalink so existing
+// links and search results keep resolving.
+export async function getStaticPaths() {
+  const posts = await getCollection('posts', ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: { permalink: post.data.permalink.replace(/^\/|\/$/g, '') },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await post.render();
+---
+<PostLayout post={post} readingTime={readingTime(post.body)}>
+  <Content />
+</PostLayout>

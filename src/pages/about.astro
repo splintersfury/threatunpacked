@@ -1,0 +1,27 @@
+---
+import { getEntry } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const entry = await getEntry('pages', 'about');
+const { Content } = await entry.render();
+---
+<BaseLayout title="About" description="About Threat Unpacked and its author.">
+  <div class="wrap page">
+    <p class="eyebrow">Colophon</p>
+    <h1>About</h1>
+    <div class="prose">
+      <Content />
+    </div>
+    <div class="links">
+      <a href="https://github.com/splintersfury" rel="me">GitHub</a>
+      <a href="https://splintersfury.github.io/KernelSight/">KernelSight</a>
+      <a href="/rss.xml">RSS</a>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .page { padding: 3.5rem 1.5rem 1rem; }
+  .page h1 { margin: 0.3rem 0 1.5rem; }
+  .links { margin-top: 2.5rem; display: flex; gap: 1.2rem; font-family: var(--font-mono); font-size: 0.85rem; }
+</style>
