@@ -1,21 +1,175 @@
 ---
-import { getEntry } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 
-const entry = await getEntry('pages', 'featured-investigations');
-const { Content } = await entry.render();
+const cves = [
+  {
+    id: 'CVE-2026-42972',
+    title: 'Windows Hyper-V Information Disclosure',
+    vendor: 'Microsoft',
+    badge: 'Important · CVSS 5.5',
+    detail: 'Unintentional kernel-memory read from a user-mode process in Hyper-V. Reported to MSRC and fixed in the June 2026 update.',
+    href: 'https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-42972',
+  },
+  {
+    id: 'CVE-2025-11156',
+    title: 'Unintended Driver Load Paths',
+    vendor: 'Netskope',
+    badge: 'NSKPSA-2025-005',
+    detail: 'Kernel-level vulnerability stemming from unintended driver load paths in the Netskope client.',
+    href: 'https://www.netskope.com/resources/netskope-resources/netskope-security-advisory-nskpsa-2025-005',
+  },
+];
+
+const malware = [
+  {
+    title: 'Reversing a Microsoft-Signed Rootkit: The Netfilter Driver',
+    detail: 'How a malicious driver slipped through Microsoft attestation signing — WFP-based IP redirection, its C2 channel, and what Microsoft tightened afterward.',
+    href: '/2025/10/07/reversing-a-microsoft-signed-rootkit-the-netfilter-driver/',
+    internal: true,
+  },
+  {
+    title: 'LockBit Operator Privacy Analysis',
+    detail: 'Intrusion insights drawn straight from leaked LockBit operator chats.',
+    href: null,
+  },
+  {
+    title: 'Malware in a VPN Appliance?! (Ivanti Connect Secure)',
+    detail: 'Reverse engineering implants planted in an Ivanti Connect Secure appliance.',
+    href: 'https://splintersfury.github.io/mal_blog/post/ivanti_connect_secure_malware/',
+    internal: false,
+  },
+];
+
+const tools = [
+  { name: 'AutoPiff', stars: 63, detail: 'Semantic engine — 58 YAML rules across 22 vulnerability categories — detects fix patterns in driver patches.', href: 'https://github.com/splintersfury/AutoPiff' },
+  { name: 'KernelSight', stars: 11, detail: 'Knowledge base — 28 Windows kernel driver case studies grounded in real CVEs.', href: 'https://github.com/splintersfury/KernelSight' },
+  { name: 'DriverAtlas', stars: 5, detail: 'Structural analysis — classifies driver frameworks, scores attack surface with 22 weighted rules.', href: 'https://github.com/splintersfury/DriverAtlas' },
+  { name: 'driver_analyzer', stars: 2, detail: 'Production pipeline — Karton + MWDB + Ghidra + MinIO orchestration and alerting.', href: 'https://github.com/splintersfury/driver_analyzer' },
+];
 ---
-<BaseLayout title="Featured Investigations" description="Selected vulnerability research and malware analysis.">
+<BaseLayout title="Featured Investigations" description="Selected vulnerability research, malware analysis, and open-source tooling by Ahmad Abdillah.">
   <div class="wrap page">
-    <p class="eyebrow">Selected Work</p>
-    <h1>Featured Investigations</h1>
-    <div class="prose">
-      <Content />
-    </div>
+    <header class="head">
+      <p class="cmd"><span class="dollar">$</span> ls ./investigations</p>
+      <p class="eyebrow">Selected Work</p>
+      <h1>Featured Investigations</h1>
+    </header>
+
+    <!-- Vulnerability research -->
+    <section class="block">
+      <div class="block-head"><span class="hash">##</span> vulnerability_research <span class="cnt">{cves.length}</span></div>
+      <div class="grid">
+        {cves.map((c) => (
+          <a class="card cve reveal" href={c.href} target="_blank" rel="noopener">
+            <div class="card-top">
+              <span class="cve-id">{c.id}</span>
+              <span class="sev">{c.badge}</span>
+            </div>
+            <h3 class="card-title">{c.title}</h3>
+            <p class="card-detail">{c.detail}</p>
+            <div class="card-foot"><span class="vendor">{c.vendor}</span><span class="go">advisory ↗</span></div>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- Malware analysis -->
+    <section class="block">
+      <div class="block-head"><span class="hash">##</span> malware_analysis <span class="cnt">{malware.length}</span></div>
+      <div class="list">
+        {malware.map((m) => (
+          <Fragment>
+            {m.href ? (
+              <a class="row reveal" href={m.href} target={m.internal ? undefined : '_blank'} rel={m.internal ? undefined : 'noopener'}>
+                <span class="bullet" aria-hidden="true">▸</span>
+                <div>
+                  <h3 class="row-title">{m.title} {!m.internal && <span class="ext">↗</span>}{m.internal && <span class="here">· on this site</span>}</h3>
+                  <p class="row-detail">{m.detail}</p>
+                </div>
+              </a>
+            ) : (
+              <div class="row static reveal">
+                <span class="bullet" aria-hidden="true">▸</span>
+                <div>
+                  <h3 class="row-title">{m.title} <span class="soon">// writeup forthcoming</span></h3>
+                  <p class="row-detail">{m.detail}</p>
+                </div>
+              </div>
+            )}
+          </Fragment>
+        ))}
+      </div>
+    </section>
+
+    <!-- Tooling -->
+    <section class="block">
+      <div class="block-head green"><span class="hash">##</span> open_source_tooling <span class="cnt">{tools.length}</span></div>
+      <div class="grid">
+        {tools.map((t) => (
+          <a class="card tool reveal" href={t.href} target="_blank" rel="noopener">
+            <div class="card-top">
+              <span class="tool-name">{t.name}</span>
+              <span class="stars">★ {t.stars}</span>
+            </div>
+            <p class="card-detail">{t.detail}</p>
+            <div class="card-foot"><span class="repo">github ↗</span></div>
+          </a>
+        ))}
+      </div>
+    </section>
   </div>
 </BaseLayout>
 
 <style>
-  .page { padding: 3.5rem 1.5rem 1rem; }
-  .page h1 { margin: 0.3rem 0 1.5rem; }
+  .page { padding: 3.5rem 1.5rem 1rem; max-width: 880px; }
+  .head { margin-bottom: 2.4rem; }
+  .cmd { font-family: var(--font-mono); font-size: 0.82rem; color: var(--muted); margin: 0 0 1rem; }
+  .cmd .dollar { color: var(--accent); }
+  .head h1 { margin: 0.3rem 0 0; }
+
+  .block { margin-bottom: 2.6rem; }
+  .block-head { font-family: var(--font-mono); font-size: 0.92rem; color: var(--ink-soft); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .block-head .hash { color: var(--accent); }
+  .block-head.green .hash { color: var(--accent2); }
+  .block-head .cnt { font-size: 0.72rem; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 0.4rem; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+
+  .card {
+    display: flex; flex-direction: column; gap: 0.5rem;
+    padding: 1.1rem 1.2rem; border: 1px solid var(--line-strong); border-radius: var(--radius);
+    background: var(--bg-soft); color: var(--ink); transition: border-color .15s, transform .15s, box-shadow .15s;
+  }
+  .card:hover { transform: translateY(-2px); text-decoration: none; box-shadow: var(--shadow); }
+  .card.cve:hover { border-color: var(--accent-line); }
+  .card.tool:hover { border-color: var(--accent2); }
+  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .cve-id { font-family: var(--font-mono); font-size: 0.84rem; font-weight: 600; color: var(--accent); }
+  .tool-name { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 600; color: var(--accent2); }
+  .sev { font-family: var(--font-mono); font-size: 0.66rem; color: var(--accent-soft); background: var(--accent-dim); padding: 0.12rem 0.45rem; border-radius: 4px; white-space: nowrap; }
+  .stars { font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent2); }
+  .card-title { font-size: 1.05rem; margin: 0; line-height: 1.3; }
+  .card-detail { margin: 0; color: var(--ink-soft); font-size: 0.88rem; line-height: 1.55; }
+  .card-foot { margin-top: auto; padding-top: 0.4rem; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
+  .card.cve .go, .card.tool .repo { color: var(--accent); }
+  .card.tool .repo { color: var(--accent2); }
+  .vendor { color: var(--ink-soft); }
+
+  .list { display: grid; gap: 0.6rem; }
+  .row {
+    display: grid; grid-template-columns: auto 1fr; gap: 0.7rem; align-items: start;
+    padding: 0.9rem 1.1rem; border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--bg-soft); color: var(--ink); transition: border-color .15s, transform .15s;
+  }
+  .row:not(.static):hover { border-color: var(--accent-line); transform: translateX(2px); text-decoration: none; }
+  .row .bullet { color: var(--accent); font-family: var(--font-mono); }
+  .row-title { font-size: 1rem; margin: 0 0 0.2rem; line-height: 1.3; }
+  .row:not(.static):hover .row-title { color: var(--accent); }
+  .row-detail { margin: 0; color: var(--ink-soft); font-size: 0.88rem; line-height: 1.5; }
+  .ext { color: var(--muted); font-size: 0.8em; }
+  .here { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent2); }
+  .soon { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); }
+  .row.static { opacity: 0.92; }
+
+  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
 </style>
