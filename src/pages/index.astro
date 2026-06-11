@@ -11,15 +11,15 @@ const featured = posts[0];
   <section class="hero">
     <div class="scanlines" aria-hidden="true"></div>
     <div class="wrap-wide hero-inner">
-      <p class="cmd"><span class="path">~/threat-unpacked</span> <span class="dollar">$</span> ls ./writing</p>
-      <p class="eyebrow">Operational Malware Analysis</p>
-      <h1 class="hero-title"><span class="chev">&gt;_</span> Threat<span class="accent">Unpacked</span><span class="cursor" aria-hidden="true">▮</span></h1>
-      <p class="hero-sub">
+      <p class="cmd boot" style="animation-delay:0ms"><span class="path">~/threat-unpacked</span> <span class="dollar">$</span> <span id="type-cmd" data-text="ls ./writing"></span><span class="type-caret" aria-hidden="true">▮</span></p>
+      <p class="eyebrow boot" style="animation-delay:140ms">Operational Malware Analysis</p>
+      <h1 class="hero-title boot" style="animation-delay:240ms"><span class="chev">&gt;_</span> Threat<span class="accent">Unpacked</span><span class="cursor" aria-hidden="true">▮</span></h1>
+      <p class="hero-sub boot" style="animation-delay:380ms">
         Deep dives into incidents, implants, and intrusion sets. Less
         <em>what the malware does</em>, more <em>why it matters when you're
         the one responding.</em>
       </p>
-      <div class="hero-actions">
+      <div class="hero-actions boot" style="animation-delay:500ms">
         <a href={postHref(featured)} class="btn">$ cat latest →</a>
         <a href="/about" class="btn ghost">$ whoami</a>
       </div>
@@ -67,6 +67,8 @@ const featured = posts[0];
   .cmd { font-family: var(--font-mono); font-size: 0.82rem; color: var(--muted); margin: 0 0 1.6rem; }
   .cmd .path { color: var(--ink-soft); }
   .cmd .dollar { color: var(--accent); }
+  .type-caret { color: var(--accent); animation: blink 1.1s steps(1) infinite; }
+  .type-caret.done { opacity: 0; }
   .hero .eyebrow { margin-bottom: 0.4rem; }
   .hero-title {
     font-family: var(--font-mono);
@@ -99,3 +101,24 @@ const featured = posts[0];
   .section-title { font-family: var(--font-mono); font-size: 0.92rem; color: var(--ink-soft); letter-spacing: 0.02em; }
   .count { font-family: var(--font-mono); font-size: 0.76rem; color: var(--muted); }
 </style>
+
+<script>
+  // Type the hero command out on load. Respects reduced-motion.
+  const el = document.getElementById('type-cmd');
+  const caret = document.querySelector('.type-caret');
+  if (el) {
+    const text = el.dataset.text || '';
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      el.textContent = text;
+    } else {
+      let i = 0;
+      const tick = () => {
+        el.textContent = text.slice(0, i++);
+        if (i <= text.length) setTimeout(tick, 55);
+        else setTimeout(() => caret?.classList.add('done'), 1400);
+      };
+      setTimeout(tick, 350);
+    }
+  }
+</script>

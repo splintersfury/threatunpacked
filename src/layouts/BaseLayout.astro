@@ -2,6 +2,7 @@
 import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import CommandPalette from '../components/CommandPalette.astro';
 
 interface Props {
   title: string;
@@ -23,5 +24,52 @@ const fullTitle = title === 'Threat Unpacked' ? title : `${title} — Threat Unp
       <slot />
     </main>
     <Footer />
+    <CommandPalette />
+
+    <script>
+      // Scroll-reveal: fade-up .reveal elements as they enter view.
+      (() => {
+        const items = document.querySelectorAll('.reveal');
+        if (!items.length) return;
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          items.forEach((el) => el.classList.add('in'));
+          return;
+        }
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach((e, i) => {
+            if (e.isIntersecting) {
+              const el = e.target;
+              setTimeout(() => el.classList.add('in'), (i % 4) * 70);
+              io.unobserve(el);
+            }
+          });
+        }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+        items.forEach((el) => io.observe(el));
+      })();
+    </script>
+
+    <script>
+      // Add a copy button to every code block (terminal-window style).
+      document.querySelectorAll('.prose pre').forEach((pre) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'copy-btn';
+        btn.textContent = 'copy';
+        btn.setAttribute('aria-label', 'Copy code');
+        btn.addEventListener('click', async () => {
+          const code = pre.querySelector('code')?.innerText ?? pre.innerText;
+          try {
+            await navigator.clipboard.writeText(code);
+            btn.textContent = 'copied ✓';
+            btn.classList.add('ok');
+            setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('ok'); }, 1500);
+          } catch {
+            btn.textContent = 'failed';
+            setTimeout(() => { btn.textContent = 'copy'; }, 1500);
+          }
+        });
+        pre.appendChild(btn);
+      });
+    </script>
   </body>
 </html>

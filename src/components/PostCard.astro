@@ -12,7 +12,7 @@ interface Props {
 }
 const { href, title, description, pubDate, fileName, series, seriesPart, readingTime } = Astro.props;
 ---
-<article class="row">
+<article class="row reveal">
   <a href={href} class="row-link" aria-label={title}></a>
   <div class="ls">
     <span class="date">[{isoDate(pubDate)}]</span>

@@ -4,24 +4,79 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
 const entry = await getEntry('pages', 'about');
 const { Content } = await entry.render();
+
+const facts = [
+  ['focus', 'incident response · windows kernel & malware reverse engineering'],
+  ['research', 'vulnerability discovery — credited by Microsoft MSRC (CVE-2026-42972, Hyper-V)'],
+  ['certs', 'OSED · GNFA · CEH Master'],
+  ['tooling', 'AutoPiff · KernelSight · DriverAtlas · driver_analyzer'],
+];
+const links = [
+  ['github', 'https://github.com/splintersfury'],
+  ['linkedin', 'https://www.linkedin.com/in/abdillahahmad/'],
+  ['kernelsight', 'https://splintersfury.github.io/KernelSight/'],
+  ['rss', '/rss.xml'],
+];
 ---
-<BaseLayout title="About" description="About Threat Unpacked and its author.">
+<BaseLayout title="About" description="Ahmad Abdillah — incident response, Windows kernel & malware reverse engineering, vulnerability research.">
   <div class="wrap page">
-    <p class="eyebrow">Colophon</p>
-    <h1>About</h1>
-    <div class="prose">
-      <Content />
-    </div>
-    <div class="links">
-      <a href="https://github.com/splintersfury" rel="me">GitHub</a>
-      <a href="https://splintersfury.github.io/KernelSight/">KernelSight</a>
-      <a href="/rss.xml">RSS</a>
-    </div>
+    <section class="profile boot" style="animation-delay:0ms">
+      <p class="cmd"><span class="dollar">$</span> whoami</p>
+      <h1>Ahmad Abdillah</h1>
+      <p class="role">Incident response · Windows kernel &amp; malware reverse engineering · vulnerability research</p>
+      <p class="loc">// Singapore</p>
+
+      <ul class="facts">
+        {facts.map(([k, v], i) => (
+          <li class="boot" style={`animation-delay:${120 + i * 80}ms`}><span class="k">{k}</span><span class="v" set:html={v} /></li>
+        ))}
+      </ul>
+
+      <div class="links boot" style="animation-delay:480ms">
+        {links.map(([label, href], i) => (
+          <>
+            {i > 0 && <span class="slash">/</span>}
+            <a href={href} rel={label === 'github' || label === 'linkedin' ? 'me' : undefined}>{label}</a>
+          </>
+        ))}
+      </div>
+    </section>
+
+    <hr />
+
+    <section class="reflect">
+      <p class="cmd muted"><span class="dollar">$</span> cat ethos.txt</p>
+      <div class="prose">
+        <Content />
+      </div>
+    </section>
   </div>
 </BaseLayout>
 
 <style>
   .page { padding: 3.5rem 1.5rem 1rem; }
-  .page h1 { margin: 0.3rem 0 1.5rem; }
-  .links { margin-top: 2.5rem; display: flex; gap: 1.2rem; font-family: var(--font-mono); font-size: 0.85rem; }
+  .cmd { font-family: var(--font-mono); font-size: 0.82rem; color: var(--muted); margin: 0 0 1rem; }
+  .cmd .dollar { color: var(--accent); }
+  .profile h1 { margin: 0.2rem 0 0.5rem; }
+  .role { font-size: 1.05rem; color: var(--ink-soft); margin: 0 0 0.3rem; line-height: 1.55; }
+  .loc { font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent); margin: 0 0 1.6rem; }
+
+  .facts { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
+  .facts li {
+    display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.8rem;
+    padding: 0.7rem 0; border-bottom: 1px solid var(--line);
+    font-size: 0.95rem; align-items: baseline;
+  }
+  .facts .k { font-family: var(--font-mono); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
+  .facts .v { color: var(--ink-soft); line-height: 1.5; }
+
+  .links { margin-top: 1.6rem; display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-mono); font-size: 0.88rem; flex-wrap: wrap; }
+  .links .slash { color: var(--muted); }
+
+  hr { margin: 2.8rem 0; }
+  .reflect .cmd { margin-bottom: 1.2rem; }
+
+  @media (max-width: 520px) {
+    .facts li { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
 </style>

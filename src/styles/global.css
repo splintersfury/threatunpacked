@@ -4,8 +4,8 @@
    ─────────────────────────────────────────────────────────────── */
 
 :root {
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   /* Dark = default (terminal) */
   --bg: #0a0c10;
@@ -24,6 +24,7 @@
   --glow-soft: 0 0 8px rgba(255, 176, 0, 0.25);
   --code-bg: #0c0f14;
   --grid: rgba(255, 255, 255, 0.022);
+  --vignette: rgba(0, 0, 0, 0.5);
 
   --maxw: 740px;
   --maxw-wide: 1080px;
@@ -48,6 +49,7 @@
   --glow-soft: none;
   --code-bg: #14171d;
   --grid: rgba(20, 22, 27, 0.03);
+  --vignette: rgba(20, 22, 27, 0.05);
 }
 
 * { box-sizing: border-box; }
@@ -62,9 +64,12 @@ body {
   margin: 0;
   background-color: var(--bg);
   background-image:
+    radial-gradient(135% 95% at 50% -12%, transparent 52%, var(--vignette) 100%),
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 34px 34px;
+  background-size: cover, 34px 34px, 34px 34px;
+  background-repeat: no-repeat, repeat, repeat;
+  background-attachment: fixed, scroll, scroll;
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 1.01rem;
@@ -165,6 +170,15 @@ pre::after {
   box-shadow: 0.8rem 0 0 #ffbd2e, 1.6rem 0 0 #27c93f;
 }
 pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+.copy-btn {
+  position: absolute; top: 0.32rem; right: 0.55rem; z-index: 2;
+  font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted);
+  background: rgba(255,255,255,0.06); border: 1px solid var(--line-strong);
+  border-radius: 4px; padding: 0.12rem 0.45rem; cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+.copy-btn.ok { color: #27c93f; border-color: #27c93f; }
 
 img { max-width: 100%; height: auto; border-radius: var(--radius); display: block; }
 .prose img { margin: 1.8em auto; border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
@@ -195,3 +209,14 @@ th { font-family: var(--font-mono); font-weight: 600; font-size: 0.8rem; text-tr
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
 
 @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+/* Motion reveals — staggered boot-up on load, fade-up on scroll */
+@keyframes bootIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.boot { opacity: 0; animation: bootIn 0.55s cubic-bezier(.2,.7,.2,1) forwards; }
+.reveal { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s cubic-bezier(.2,.7,.2,1); }
+.reveal.in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .boot, .reveal { opacity: 1 !important; transform: none !important; animation: none !important; transition: none !important; }
+  .type-caret, .cursor { animation: none !important; }
+}

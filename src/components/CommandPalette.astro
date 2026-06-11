@@ -1,0 +1,198 @@
+---
+// Interactive terminal overlay. Open with ` (backtick) or Ctrl/Cmd+K,
+// or the header button. A small command set navigates the site.
+// The post list is injected at build time so `ls`/`cat` know what exists.
+import { getCollection } from 'astro:content';
+import { postHref, byDateDesc, fileName } from '../utils';
+
+const posts = (await getCollection('posts', ({ data }) => !data.draft)).sort(byDateDesc);
+const index = posts.map((p) => ({
+  file: fileName(p),
+  title: p.data.title,
+  href: postHref(p),
+}));
+---
+<div id="term" class="term" role="dialog" aria-modal="true" aria-label="Command terminal" hidden>
+  <div class="term-backdrop" data-close></div>
+  <div class="term-window" role="document">
+    <div class="term-bar">
+      <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="term-title">visitor@threatunpacked: ~</span>
+      <button class="term-x" type="button" aria-label="Close terminal" data-close>esc</button>
+    </div>
+    <div class="term-body" id="term-body">
+      <div class="line muted">threatunpacked shell — type <span class="hl">help</span> and press enter. <span class="hl">esc</span> to close.</div>
+    </div>
+    <form class="term-input" id="term-form" autocomplete="off">
+      <span class="ps1"><span class="accent">visitor@threatunpacked</span>:<span class="path">~</span>$</span>
+      <input id="term-cmd" type="text" aria-label="Command input" spellcheck="false" autocapitalize="off" />
+    </form>
+  </div>
+</div>
+
+<script is:inline define:vars={{ index }}>
+  (() => {
+    const term = document.getElementById('term');
+    const body = document.getElementById('term-body');
+    const form = document.getElementById('term-form');
+    const input = document.getElementById('term-cmd');
+    if (!term || !body || !form || !input) return;
+
+    const history = [];
+    let hpos = -1;
+
+    const print = (html, cls = '') => {
+      const div = document.createElement('div');
+      div.className = 'line ' + cls;
+      div.innerHTML = html;
+      body.appendChild(div);
+      body.scrollTop = body.scrollHeight;
+    };
+    const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    let greeted = false;
+    const open = () => {
+      term.hidden = false;
+      if (!greeted) {
+        greeted = true;
+        body.innerHTML = '';
+        commands.banner();
+        print('threatunpacked shell · type <span class="hl">help</span> to list commands · <span class="hl">esc</span> to close', 'muted');
+      }
+      requestAnimationFrame(() => { term.classList.add('show'); input.focus(); });
+    };
+    const close = () => {
+      term.classList.remove('show');
+      setTimeout(() => { term.hidden = true; }, 180);
+    };
+    const toggle = () => (term.hidden ? open() : close());
+
+    const commands = {
+      help() {
+        print('available commands:', 'muted');
+        const rows = [
+          ['ls', 'list all writing'],
+          ['cat &lt;file&gt;', 'open a post by filename'],
+          ['open &lt;n&gt;', 'open post number n from ls'],
+          ['whoami', 'about the author'],
+          ['theme', 'toggle light / dark'],
+          ['goto github|kernelsight|rss', 'jump to a link'],
+          ['banner', 'redraw the logo'],
+          ['clear', 'clear the screen'],
+        ];
+        rows.forEach(([c, d]) => print(`<span class="accent">${c.padEnd ? c : c}</span>  <span class="muted">${d}</span>`, 'cmdrow'));
+      },
+      ls() {
+        if (!index.length) return print('no entries.', 'muted');
+        index.forEach((p, i) => {
+          print(`<span class="muted">${String(i).padStart(2, '0')}</span>  <a href="${p.href}" class="accent">${esc(p.file)}</a>  <span class="muted">${esc(p.title)}</span>`);
+        });
+      },
+      cat(arg) {
+        if (!arg) return print('usage: cat &lt;file&gt; — try <span class="hl">ls</span>', 'muted');
+        const hit = index.find((p) => p.file === arg || p.file.startsWith(arg));
+        if (!hit) return print(`cat: ${esc(arg)}: no such file. try <span class="hl">ls</span>`, 'err');
+        print(`opening <span class="accent">${esc(hit.file)}</span> …`);
+        location.href = hit.href;
+      },
+      open(arg) {
+        const n = parseInt(arg, 10);
+        if (Number.isNaN(n) || !index[n]) return print(`open: index out of range. try <span class="hl">ls</span>`, 'err');
+        print(`opening <span class="accent">${esc(index[n].file)}</span> …`);
+        location.href = index[n].href;
+      },
+      whoami() { print('navigating to /about …'); location.href = '/about'; },
+      theme() {
+        const root = document.documentElement;
+        const next = root.dataset.theme === 'light' ? 'dark' : 'light';
+        root.dataset.theme = next;
+        localStorage.setItem('theme', next);
+        print(`theme set to <span class="accent">${next}</span>`);
+      },
+      goto(arg) {
+        const map = {
+          github: 'https://github.com/splintersfury',
+          kernelsight: 'https://splintersfury.github.io/KernelSight/',
+          rss: '/rss.xml',
+          home: '/',
+        };
+        const url = map[arg];
+        if (!url) return print(`goto: unknown target "${esc(arg || '')}". options: github, kernelsight, rss, home`, 'err');
+        print(`→ ${esc(url)}`);
+        location.href = url;
+      },
+      banner() {
+        print('<pre class="ascii">  ___ _  _ ___ ___   _ _____\n |_   | || | _ \\ __| /_\\_   _|   THREAT\n  | | | __ |   / _| / _ \\| |     UNPACKED\n  |_| |_||_|_|_\\___/_/ \\_\\_|     >_ </pre>', 'banner');
+      },
+      clear() { body.innerHTML = ''; },
+    };
+
+    const run = (raw) => {
+      const cmd = raw.trim();
+      if (!cmd) return;
+      print(`<span class="ps1-inline"><span class="accent">$</span> ${esc(cmd)}</span>`, 'echo');
+      history.unshift(cmd); hpos = -1;
+      const [name, ...rest] = cmd.split(/\s+/);
+      const fn = commands[name.toLowerCase()];
+      if (fn) fn(rest.join(' '));
+      else print(`${esc(name)}: command not found. type <span class="hl">help</span>`, 'err');
+    };
+
+    form.addEventListener('submit', (e) => { e.preventDefault(); run(input.value); input.value = ''; });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp') { e.preventDefault(); if (hpos < history.length - 1) input.value = history[++hpos] || ''; }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); if (hpos > 0) input.value = history[--hpos] || ''; else { hpos = -1; input.value = ''; } }
+    });
+
+    term.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', close));
+    document.addEventListener('keydown', (e) => {
+      const typing = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
+      if (e.key === 'Escape' && !term.hidden) { close(); }
+      else if (e.key === '`' && !typing) { e.preventDefault(); toggle(); }
+      else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); toggle(); }
+    });
+    document.querySelectorAll('[data-term-open]').forEach((el) => el.addEventListener('click', open));
+
+    window.__openTerm = open;
+  })();
+</script>
+
+<style>
+  .term { position: fixed; inset: 0; z-index: 200; display: grid; place-items: start center; padding-top: 12vh; }
+  .term[hidden] { display: none; }
+  .term-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); opacity: 0; transition: opacity .18s; }
+  .term.show .term-backdrop { opacity: 1; }
+  .term-window {
+    position: relative; width: min(680px, 92vw); max-height: 70vh;
+    display: flex; flex-direction: column;
+    background: var(--code-bg); border: 1px solid var(--accent-line);
+    border-radius: 10px; overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.3), 0 24px 70px rgba(0,0,0,.6), var(--glow-soft);
+    transform: translateY(-8px) scale(.985); opacity: 0; transition: transform .18s, opacity .18s;
+    font-family: var(--font-mono);
+  }
+  .term.show .term-window { transform: translateY(0) scale(1); opacity: 1; }
+  .term-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.7rem; background: rgba(255,255,255,0.04); border-bottom: 1px solid var(--line); }
+  .dots { display: inline-flex; gap: 0.4rem; }
+  .dots i { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: #ff5f56; }
+  .dots i:nth-child(2) { background: #ffbd2e; } .dots i:nth-child(3) { background: #27c93f; }
+  .term-title { flex: 1; font-size: 0.74rem; color: var(--muted); }
+  .term-x { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); background: none; border: 1px solid var(--line-strong); border-radius: 4px; padding: 0.1rem 0.4rem; cursor: pointer; }
+  .term-x:hover { color: var(--accent); border-color: var(--accent); }
+  .term-body { padding: 0.9rem 1rem; overflow-y: auto; font-size: 0.82rem; line-height: 1.7; color: #d8dde4; flex: 1; }
+  .term-body .line { white-space: pre-wrap; word-break: break-word; }
+  .term-body .accent { color: var(--accent); }
+  .term-body .muted { color: var(--muted); }
+  .term-body .hl { color: var(--accent-soft); }
+  .term-body .err { color: #ff7a6b; }
+  .term-body .echo { color: #fff; margin-top: 0.3rem; }
+  .term-body a { color: var(--accent); }
+  .term-body .ascii { color: var(--accent); font-size: 0.66rem; line-height: 1.25; text-shadow: var(--glow-soft); margin: 0.2rem 0; background: none; border: none; padding: 0; }
+  .term-input { display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-top: 1px solid var(--line); background: rgba(255,255,255,0.02); }
+  .term-input .ps1 { font-size: 0.8rem; color: var(--ink-soft); white-space: nowrap; }
+  .term-input .ps1 .accent { color: var(--accent); } .term-input .ps1 .path { color: var(--accent-soft); }
+  #term-cmd { flex: 1; background: none; border: none; outline: none; color: var(--ink); font-family: var(--font-mono); font-size: 0.82rem; caret-color: var(--accent); }
+  @media (prefers-reduced-motion: reduce) {
+    .term-window, .term-backdrop { transition: none; }
+  }
+</style>
