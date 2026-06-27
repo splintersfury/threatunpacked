@@ -97,13 +97,13 @@ There are two ways to tie a C2 to a sample. The slow way is detonation: run the 
 
 ![C2 to target map](/images/unpacking-canon-dat-plugx-c2-infrastructure-c2map.png)
 
-| C2 (HTTPS/443) | build(s) | decoy / target |
-|----------------|----------|----------------|
-| `202.61.72[.]198` | seed | Mongolia: National Security Council (ҮАБЗ) regional-security report |
-| `dalerocks[.]com` | px1/px3/px4 | Cambodia: "Hun Sen courtesy call" `.lnk` |
-| `concreteinportland[.]com` | px8 | NATO / France: Alice Rufo / Ankara Summit briefing PDF |
-| `neurosurgeryx[.]com` | px7 | (decoy not yet recovered) |
-| `rhonline[.]net` | px2/px5/px6 | (decoy not yet recovered) |
+| C2 (HTTPS/443) | Canon.dat build(s) | decoy / target |
+|----------------|--------------------|----------------|
+| `202.61.72[.]198` | `c74d70…` (seed) | Mongolia: National Security Council (ҮАБЗ) regional-security report |
+| `dalerocks[.]com` | `1e05e5ec…` `418ad90f…` `542aaae7…` | Cambodia: "Hun Sen courtesy call" `.lnk` |
+| `concreteinportland[.]com` | `f982474f…` | NATO / France: Alice Rufo / Ankara Summit briefing PDF |
+| `neurosurgeryx[.]com` | `7e825f86…` | not recovered |
+| `rhonline[.]net` | not pinned | not recovered |
 
 So this isn't one target. It's a spread of governments and defense bodies: Mongolia's national-security apparatus, Cambodian diplomacy, French/NATO defense, and probably Lithuania (more on that below). That lines up with the documented UNC6384 swing back toward EU/NATO in mid-2025.
 
@@ -125,11 +125,11 @@ This section is also where I have to show my work, because a couple of my early 
 - **Registrant clustering was a dead end.** Three of the domains shared registrant hash `c6523241936df1ba`, and for a minute I thought that was the operator's fingerprint. It isn't. It's a generic privacy-redaction value shared by 30+ unrelated domains. Reverse-whois on it is noise.
 - **JA3S/JARM didn't isolate anything.** The seed origin's TLS fingerprints match 15k–127k hosts, because it's a stock nginx+CloudFlare stack. Fingerprint pivots only help when the stack is unusual; here, the hosting-plus-cert pivot is what worked.
 
-### What you can't get from the malware
+### What the malware can't tell you
 
-The question everyone asks is "how many victims?" Honestly, you can't answer that from the binaries. The number lives on the C2 side. You'd need to sinkhole the domains or get CloudFlare or law enforcement to enumerate connections, which is how the *other* PlugX botnets got counted. What the samples tell you is the *targeting*, not the *hit list*. Given the gov/defense decoys and only 2–4 VT submissions per sample, this reads as targeted: dozens of high-value victims, not thousands.
+There's no victim count in here. That lives on the C2 side. You'd need to sinkhole the domains, or have CloudFlare or law enforcement enumerate the connections, which is how the larger PlugX botnets got counted. The binaries give you targeting, not a victim list. With government and defense decoys and only a handful of submissions per sample, this looks like a targeted operation rather than a broad one: a small set of high-value victims, not a botnet.
 
-A couple of honest loose ends. Two builds (px2/px5) are stubborn to trigger inside the dump window, so `rhonline[.]net`'s exact build is still pending a longer-wait retry. And `techlietuva[.]com` is verified by infrastructure, not by a captured beacon. FUD payloads don't detonate in sandboxes, so VT has no communicating sample for it. The link rests on co-location and an identical origin profile. That's strong, but I'd rather call it what it is.
+One confidence note worth stating plainly. `techlietuva[.]com` is tied to the campaign by infrastructure, not by a captured beacon. These FUD payloads don't detonate in public sandboxes, so there's no sample on record talking to it. The link rests on it being co-located with the confirmed origin and running the identical server profile: a Windows VPS with a CloudFlare Origin cert and RDP/WinRM exposed, in the same `/24`. Strong, but circumstantial, and worth saying so rather than overstating it.
 
 ### Indicators
 
