@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chopi RAT Infrastructure Graph</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0D1117; color: #E6EDF3; font-family: 'SF Mono', 'Fira Code', monospace; overflow: hidden; }
+
+  #graph { width: 100vw; height: 100vh; }
+
+  .node circle { stroke: #0D1117; stroke-width: 1.5px; cursor: pointer; }
+  .node text { font-size: 10px; fill: #C9D1D9; pointer-events: none; }
+  .node:hover circle { stroke: #fff; stroke-width: 2.5px; }
+  .link { stroke-opacity: 0.55; }
+  .link-label { font-size: 8px; fill: #6E7681; pointer-events: none; }
+
+  #tooltip {
+    position: fixed; top: 0; left: 0;
+    background: #161B22; border: 1px solid #30363D;
+    border-radius: 6px; padding: 10px 14px;
+    font-size: 11px; line-height: 1.6;
+    max-width: 320px; pointer-events: none;
+    display: none; z-index: 100;
+    box-shadow: 0 8px 24px rgba(1,4,9,0.6);
+  }
+  #tooltip .tt-name { font-size: 13px; font-weight: bold; color: #58A6FF; margin-bottom: 4px; }
+  #tooltip .tt-label { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 10px; margin-bottom: 6px; }
+  #tooltip .tt-line { color: #8B949E; }
+  #tooltip .tt-line span { color: #C9D1D9; }
+
+  #legend {
+    position: fixed; bottom: 16px; left: 16px;
+    background: rgba(22,27,34,0.9); border: 1px solid #30363D;
+    border-radius: 6px; padding: 10px 14px; font-size: 10px;
+    backdrop-filter: blur(4px);
+  }
+  #legend h3 { font-size: 10px; color: #8B949E; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .leg-item { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  #controls {
+    position: fixed; top: 16px; right: 16px;
+    background: rgba(22,27,34,0.9); border: 1px solid #30363D;
+    border-radius: 6px; padding: 10px 14px; font-size: 10px;
+    backdrop-filter: blur(4px);
+  }
+  #controls h3 { font-size: 10px; color: #8B949E; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  #controls p { color: #8B949E; line-height: 1.8; }
+  #controls kbd { background: #21262D; border: 1px solid #30363D; border-radius: 3px; padding: 1px 5px; color: #C9D1D9; }
+
+  #title {
+    position: fixed; top: 16px; left: 16px;
+    font-size: 11px; color: #8B949E;
+    pointer-events: none;
+  }
+  #title strong { color: #C9D1D9; font-size: 13px; display: block; margin-bottom: 2px; }
+
+  #filter {
+    position: fixed; bottom: 16px; right: 16px;
+    background: rgba(22,27,34,0.9); border: 1px solid #30363D;
+    border-radius: 6px; padding: 10px 14px; font-size: 10px;
+    backdrop-filter: blur(4px);
+  }
+  #filter h3 { font-size: 10px; color: #8B949E; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .filter-btn {
+    display: inline-block; margin: 2px;
+    padding: 2px 8px; border-radius: 3px; cursor: pointer;
+    border: 1px solid #30363D; font-size: 9px;
+    transition: opacity 0.15s;
+  }
+  .filter-btn.active { opacity: 1; }
+  .filter-btn.inactive { opacity: 0.35; }
+</style>
+</head>
+<body>
+<div id="title">
+  <strong>Chopi RAT · Vishing Campaign Infrastructure</strong>
+  76 nodes · 74 edges · Vultr / DigitalOcean / Contabo
+</div>
+
+<div id="tooltip"></div>
+
+<div id="legend">
+  <h3>Node type</h3>
+  <div class="leg-item"><div class="leg-dot" style="background:#F87171"></div> Actor</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#60A5FA"></div> IP address</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#34D399"></div> Domain</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#FBBF24"></div> Sample / file</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#A855F7"></div> Infrastructure</div>
+</div>
+
+<div id="controls">
+  <h3>Navigation</h3>
+  <p>
+    Scroll — zoom<br>
+    Drag background — pan<br>
+    Drag node — repin<br>
+    Click node — details<br>
+    <kbd>R</kbd> — reset view
+  </p>
+</div>
+
+<div id="filter">
+  <h3>Filter by type</h3>
+</div>
+
+<svg id="graph">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#555"/>
+    </marker>
+  </defs>
+</svg>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+const graphData = {
+  "nodes": [
+    {
+      "id": 0,
+      "label": "IP",
+      "name": "65.20.107.242",
+      "role": "Staging-1",
+      "notes": "Original opendir; anon R/W; 8 files in /cloud/. mscomctl/mscomer/netosh/stager agents + lg.txt.",
+      "geo": "ES/Alcobendas",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 1,
+      "label": "IP",
+      "name": "65.20.100.95",
+      "role": "C2-B",
+      "notes": "netosh.ocx C2; confirmed via lg.txt + AES config RE.",
+      "geo": "ES",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 2,
+      "label": "IP",
+      "name": "65.20.100.96",
+      "role": "Sibling?",
+      "notes": "Adjacent to C2-B; independent VT malicious votes.",
+      "geo": "ES",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 3,
+      "label": "IP",
+      "name": "65.20.112.222",
+      "role": "C2-C + Chopi panel",
+      "notes": "c07c/dandan/tinystager/stager beacon here. No prior public intel 2026-06-30.",
+      "geo": "SE/Stockholm",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 4,
+      "label": "IP",
+      "name": "65.20.108.18",
+      "role": "Staging-2 / C2",
+      "notes": "thessa.trackgrid.net; morocco-conference campaign; /ws/agent + /auth/login.php.",
+      "geo": "ES",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 5,
+      "label": "IP",
+      "name": "108.61.216.142",
+      "role": "Staging-3 + Chopi",
+      "notes": "Crypto phishing suite; /cloud/ created 2026-06-17.",
+      "geo": "US/LA",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 6,
+      "label": "IP",
+      "name": "208.76.221.82",
+      "role": "Chopi + SwiftDrop lure",
+      "notes": "threadedarbiter.net; Sectigo cert; AI-gen lure.",
+      "geo": "ES/Alcobendas",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 7,
+      "label": "IP",
+      "name": "208.85.22.144",
+      "role": "Mail infra / backbone",
+      "notes": "trackgrid.net apex; rginginternet.com; Hestia CP cert CN=mad12vm1.rgingenieros.com.",
+      "geo": "ES",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 8,
+      "label": "IP",
+      "name": "65.20.101.220",
+      "role": "Call Center CRM-1",
+      "notes": "crm.trackgrid.net; Bootstrap 5 login; Let's Encrypt cert.",
+      "geo": "ES",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 9,
+      "label": "IP",
+      "name": "208.85.18.237",
+      "role": "SSH/unknown",
+      "notes": "lamb.trackgrid.net; Debian 12.",
+      "geo": "ES",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 10,
+      "label": "IP",
+      "name": "65.20.106.33",
+      "role": "SSH/unknown",
+      "notes": "turtle.trackgrid.net; Ubuntu 20.04.",
+      "geo": "ES",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 11,
+      "label": "IP",
+      "name": "70.34.215.224",
+      "role": "SSH/unknown",
+      "notes": "sheep.trackgrid.net.",
+      "geo": "SE",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 12,
+      "label": "IP",
+      "name": "65.20.106.251",
+      "role": "unknown",
+      "notes": "go.trackgrid.net.",
+      "geo": "unknown",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 13,
+      "label": "IP",
+      "name": "164.90.188.208",
+      "role": "SwiftDrop lure",
+      "notes": "blockresolver.com; registered 2026-02-04.",
+      "geo": "DE/Frankfurt",
+      "provider": "DigitalOcean AS14061"
+    },
+    {
+      "id": 14,
+      "label": "IP",
+      "name": "206.81.25.27",
+      "role": "SwiftDrop lure",
+      "notes": "simulationevaluator.org; registered 2026-02-12; NS qhoster.net.",
+      "geo": "DE/Frankfurt",
+      "provider": "DigitalOcean AS14061"
+    },
+    {
+      "id": 15,
+      "label": "IP",
+      "name": "84.247.149.210",
+      "role": "Call Center CRM-2",
+      "notes": "mtdscrm.online; pendingDelete on VT.",
+      "geo": "SG",
+      "provider": "Contabo AS141995"
+    },
+    {
+      "id": 16,
+      "label": "IP",
+      "name": "160.251.64.80",
+      "role": "Coinbase phish host",
+      "notes": "coinblase.com resolves here.",
+      "geo": "unknown",
+      "provider": "unknown"
+    },
+    {
+      "id": 17,
+      "label": "Domain",
+      "name": "trackgrid.net",
+      "role": "backbone C2 domain",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 18,
+      "label": "Domain",
+      "name": "thessa.trackgrid.net",
+      "role": "C2 WS + Chopi panel",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 19,
+      "label": "Domain",
+      "name": "crm.trackgrid.net",
+      "role": "Call Center CRM-1",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 20,
+      "label": "Domain",
+      "name": "dollar.trackgrid.net",
+      "role": "-> CRM-1",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 21,
+      "label": "Domain",
+      "name": "lamb.trackgrid.net",
+      "role": "SSH node",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 22,
+      "label": "Domain",
+      "name": "turtle.trackgrid.net",
+      "role": "SSH node",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 23,
+      "label": "Domain",
+      "name": "sheep.trackgrid.net",
+      "role": "SSH node",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 24,
+      "label": "Domain",
+      "name": "go.trackgrid.net",
+      "role": "unknown",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 25,
+      "label": "Domain",
+      "name": "threadedarbiter.net",
+      "role": "SwiftDrop lure host",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 26,
+      "label": "Domain",
+      "name": "blockresolver.com",
+      "role": "SwiftDrop lure host",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 27,
+      "label": "Domain",
+      "name": "simulationevaluator.org",
+      "role": "SwiftDrop lure host",
+      "notes": "NS: qhoster.net.",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 28,
+      "label": "Domain",
+      "name": "mtdscrm.online",
+      "role": "Call Center CRM-2",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 29,
+      "label": "Domain",
+      "name": "rginginternet.com",
+      "role": "Mail server hostname alias",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 30,
+      "label": "Domain",
+      "name": "ceinbase.com",
+      "role": "Coinbase phishing",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 31,
+      "label": "Domain",
+      "name": "coinbrase.com",
+      "role": "Coinbase phishing",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 32,
+      "label": "Domain",
+      "name": "coinblase.com",
+      "role": "Coinbase phishing",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 33,
+      "label": "Domain",
+      "name": "loading-coinbase.com",
+      "role": "Coinbase phishing",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 34,
+      "label": "Sample",
+      "name": "netosh.ocx",
+      "role": "full agent",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 35,
+      "label": "Sample",
+      "name": "mscomctl.ocx",
+      "role": "full agent",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 36,
+      "label": "Sample",
+      "name": "mscomer.ocx",
+      "role": "full agent",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 37,
+      "label": "Sample",
+      "name": "dandan.ocx",
+      "role": "full agent; drops tpqq8t.exe",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 38,
+      "label": "Sample",
+      "name": "tinystager.ocx",
+      "role": "full agent; drops yolriy9p.exe",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 39,
+      "label": "Sample",
+      "name": "c07c.ocx",
+      "role": "full agent",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 40,
+      "label": "Sample",
+      "name": "stager.ocx",
+      "role": "tiny first-stage HTTP pull-down; detect-debug-env; long-sleeps",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 41,
+      "label": "Sample",
+      "name": "morocco-conference.lnk",
+      "role": "lure LNK; PS iwr confrence.mp4; cmd /v /c char-sub obfuscation",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 42,
+      "label": "Sample",
+      "name": "Screenshot_25_05_2026.lnk",
+      "role": "lure LNK via /cloud/",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 43,
+      "label": "Actor",
+      "name": "Bruno",
+      "role": "",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 44,
+      "label": "IP",
+      "name": "65.20.97.79",
+      "role": "API / unknown C2",
+      "notes": "api.trackgrid.net; integrox.io; wavetracker.io. Registered late-Dec 2025.",
+      "geo": "ES",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 45,
+      "label": "IP",
+      "name": "65.20.99.75",
+      "role": "Old mail IP",
+      "notes": "Previous IP of mad12vm1.rgingenieros.com; same SSH host key as 208.85.22.144.",
+      "geo": "ES",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 46,
+      "label": "IP",
+      "name": "208.85.21.245",
+      "role": "Staging-4 / AI Call Platform",
+      "notes": "OPSEC fail: Vite React dev-mode exposes source maps. Payloads: 612672525.ocx, 23172837484.ocx, Google Chrome.lnk. Domains: cellexpert.io, cloudy.ink, statsapi.org, atomconfig.com.",
+      "geo": "ES",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 47,
+      "label": "IP",
+      "name": "140.82.16.230",
+      "role": "Staging-5 / Windows VM",
+      "notes": "Win11 Build 26100; hostname VULTR-GUEST. OPSEC fail: RDP+WinRM exposed. Payloads: 23172837484.ocx, 231728374854.ocx, 2317283748467.ocx, generateKey.ocx, API_Credentials.txt.lnk, API_Integration.pdf.ln",
+      "geo": "US/LA",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 48,
+      "label": "IP",
+      "name": "45.76.93.68",
+      "role": "RG Internet primary",
+      "notes": "rgingenieros.com primary. Legitimate Spanish hoster.",
+      "geo": "DE/Frankfurt",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 49,
+      "label": "IP",
+      "name": "45.76.87.178",
+      "role": "RG Internet mail (Frankfurt)",
+      "notes": "frk10vm1.rgingenieros.com / frk10vm1.rginternet.com.",
+      "geo": "DE/Frankfurt",
+      "provider": "Vultr AS20473"
+    },
+    {
+      "id": 50,
+      "label": "Domain",
+      "name": "api.trackgrid.net",
+      "role": "API / unknown",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 51,
+      "label": "Domain",
+      "name": "cellexpert.io",
+      "role": "Staging-4 / AI Call Platform CORS origin",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 52,
+      "label": "Domain",
+      "name": "cloudy.ink",
+      "role": "Staging-4 domain",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 53,
+      "label": "Domain",
+      "name": "statsapi.org",
+      "role": "Staging-4 login panel (oldest)",
+      "notes": "PHP 8.2.30 / Bootstrap 4.5.2. Oldest domain in cluster \u2014 campaign start anchor.",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 54,
+      "label": "Domain",
+      "name": "atomconfig.com",
+      "role": "Staging-4 (parked/inactive)",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 55,
+      "label": "Domain",
+      "name": "integration.click",
+      "role": "Staging-5 / API-themed lure",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 56,
+      "label": "Domain",
+      "name": "bmidrive.pro",
+      "role": "Staging-5 / unknown",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 57,
+      "label": "Domain",
+      "name": "nkbada.online",
+      "role": "Staging-5 / unknown",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 58,
+      "label": "Domain",
+      "name": "integrox.io",
+      "role": "unknown (65.20.97.79 pivot)",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 59,
+      "label": "Domain",
+      "name": "wavetracker.io",
+      "role": "unknown (65.20.97.79 pivot)",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 60,
+      "label": "Domain",
+      "name": "rgingenieros.com",
+      "role": "RG Internet hosting company",
+      "notes": "Hestia CP hostname on 208.85.22.144 cert. Likely legitimate hoster.",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 61,
+      "label": "Domain",
+      "name": "rginternet.com",
+      "role": "RG Internet brand domain",
+      "notes": "SPF: ip4:65.20.99.75 ip4:208.85.22.144 a:mad12vm1.rgingenieros.com.",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 62,
+      "label": "Sample",
+      "name": "mscomctl.ocx",
+      "role": "full agent",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 63,
+      "label": "Sample",
+      "name": "mscomer.ocx",
+      "role": "full agent",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 64,
+      "label": "Sample",
+      "name": "dandan.ocx",
+      "role": "full agent; drops tpqq8t.exe",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 65,
+      "label": "Sample",
+      "name": "tinystager.ocx",
+      "role": "full agent; drops yolriy9p.exe",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 66,
+      "label": "Sample",
+      "name": "c07c.ocx",
+      "role": "full agent; self-identifies as mscomctl.ocx in AES config",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 67,
+      "label": "Sample",
+      "name": "23172837484.ocx",
+      "role": "sandbox-evading dropper; installed as proxyman.exe; no AES S-box; drops b55f9c2f payload (not in VT)",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 68,
+      "label": "Sample",
+      "name": "dropper-20260514.exe",
+      "role": "dropper; build path leaked: D:\\auto_black_abuse\\...\\20260519_023543_2026-05-16\\",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 69,
+      "label": "Sample",
+      "name": "dropper-20260519.exe",
+      "role": "dropper; build path leaked: D:\\auto_black_abuse\\...\\20260523_044818_2026-05-20\\",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 70,
+      "label": "Sample",
+      "name": "dropper-20260526.exe",
+      "role": "dropper; build path leaked: D:\\auto_black_abuse\\...\\20260530_054357_2026-05-27\\",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 71,
+      "label": "Sample",
+      "name": "payload-dropped-by-dropper",
+      "role": "payload dropped by 23172837484.ocx; observed by Google Safe Browsing; not in VT",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 72,
+      "label": "Sample",
+      "name": "API_Credentials_v1.lnk",
+      "role": "developer lure LNK; net use WebDAV -> regsvr32 dropper -> decoy notepad",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 73,
+      "label": "Sample",
+      "name": "API_Credentials_v2.lnk",
+      "role": "developer lure LNK v2; same cmd /v /c obfuscation pattern",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 74,
+      "label": "Actor",
+      "name": "auto_black_abuse-builder",
+      "role": "",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    },
+    {
+      "id": 75,
+      "label": "Infra",
+      "name": "RG Internet",
+      "role": "",
+      "notes": "",
+      "geo": "",
+      "provider": ""
+    }
+  ],
+  "links": [
+    {
+      "source": 17,
+      "target": 7,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 18,
+      "target": 4,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 19,
+      "target": 8,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 20,
+      "target": 8,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 21,
+      "target": 9,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 22,
+      "target": 10,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 23,
+      "target": 11,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 24,
+      "target": 12,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 25,
+      "target": 6,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 26,
+      "target": 13,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 27,
+      "target": 14,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 28,
+      "target": 15,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 29,
+      "target": 7,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 32,
+      "target": 16,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 34,
+      "target": 1,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 35,
+      "target": 0,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 36,
+      "target": 0,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 37,
+      "target": 3,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 38,
+      "target": 3,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 39,
+      "target": 3,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 40,
+      "target": 3,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 34,
+      "target": 0,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 35,
+      "target": 0,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 36,
+      "target": 0,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 40,
+      "target": 0,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 41,
+      "target": 4,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 42,
+      "target": 4,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 43,
+      "target": 0,
+      "rel": "LEAKED_FROM"
+    },
+    {
+      "source": 30,
+      "target": 5,
+      "rel": "HOSTED_ON"
+    },
+    {
+      "source": 31,
+      "target": 5,
+      "rel": "HOSTED_ON"
+    },
+    {
+      "source": 33,
+      "target": 5,
+      "rel": "HOSTED_ON"
+    },
+    {
+      "source": 32,
+      "target": 5,
+      "rel": "HOSTED_ON"
+    },
+    {
+      "source": 17,
+      "target": 28,
+      "rel": "SAME_REGISTRANT_PATTERN"
+    },
+    {
+      "source": 18,
+      "target": 4,
+      "rel": "LINKED_TO"
+    },
+    {
+      "source": 50,
+      "target": 44,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 61,
+      "target": 7,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 51,
+      "target": 46,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 52,
+      "target": 46,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 53,
+      "target": 46,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 54,
+      "target": 46,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 55,
+      "target": 47,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 56,
+      "target": 47,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 57,
+      "target": 47,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 58,
+      "target": 44,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 59,
+      "target": 44,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 60,
+      "target": 48,
+      "rel": "RESOLVES_TO"
+    },
+    {
+      "source": 62,
+      "target": 0,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 63,
+      "target": 0,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 64,
+      "target": 3,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 65,
+      "target": 3,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 66,
+      "target": 3,
+      "rel": "BEACONS_TO"
+    },
+    {
+      "source": 62,
+      "target": 0,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 63,
+      "target": 0,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 67,
+      "target": 46,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 67,
+      "target": 47,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 72,
+      "target": 47,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 73,
+      "target": 47,
+      "rel": "STAGED_ON"
+    },
+    {
+      "source": 72,
+      "target": 67,
+      "rel": "DROPS"
+    },
+    {
+      "source": 73,
+      "target": 67,
+      "rel": "DROPS"
+    },
+    {
+      "source": 67,
+      "target": 71,
+      "rel": "DROPS"
+    },
+    {
+      "source": 67,
+      "target": 74,
+      "rel": "BUILT_WITH"
+    },
+    {
+      "source": 68,
+      "target": 74,
+      "rel": "BUILT_WITH"
+    },
+    {
+      "source": 69,
+      "target": 74,
+      "rel": "BUILT_WITH"
+    },
+    {
+      "source": 70,
+      "target": 74,
+      "rel": "BUILT_WITH"
+    },
+    {
+      "source": 45,
+      "target": 7,
+      "rel": "SAME_SSH_KEY"
+    },
+    {
+      "source": 17,
+      "target": 51,
+      "rel": "SAME_REGISTRANT_PATTERN"
+    },
+    {
+      "source": 17,
+      "target": 58,
+      "rel": "SAME_REGISTRANT_PATTERN"
+    },
+    {
+      "source": 17,
+      "target": 59,
+      "rel": "SAME_REGISTRANT_PATTERN"
+    },
+    {
+      "source": 17,
+      "target": 55,
+      "rel": "SAME_REGISTRANT_PATTERN"
+    },
+    {
+      "source": 17,
+      "target": 52,
+      "rel": "SAME_REGISTRANT_PATTERN"
+    },
+    {
+      "source": 75,
+      "target": 7,
+      "rel": "HOSTS"
+    },
+    {
+      "source": 75,
+      "target": 45,
+      "rel": "HOSTS"
+    },
+    {
+      "source": 75,
+      "target": 48,
+      "rel": "HOSTS"
+    },
+    {
+      "source": 75,
+      "target": 49,
+      "rel": "HOSTS"
+    }
+  ]
+};
+
+const COLOR = {
+  IP:     "#60A5FA",
+  Domain: "#34D399",
+  Sample: "#FBBF24",
+  Actor:  "#F87171",
+  Infra:  "#A855F7",
+};
+const EDGE_COLOR = {
+  BEACONS_TO:              "#60A5FA",
+  RESOLVES_TO:             "#34D399",
+  HOSTED_ON:               "#818CF8",
+  HOSTS:                   "#22D3EE",
+  STAGED_ON:               "#FBBF24",
+  DROPS:                   "#F87171",
+  SAME_SSH_KEY:            "#F472B6",
+  SAME_REGISTRANT_PATTERN: "#C084FC",
+  BUILT_WITH:              "#FB923C",
+  LEAKED_FROM:             "#6EE7B7",
+  LINKED_TO:               "#475569",
+};
+
+const width  = window.innerWidth;
+const height = window.innerHeight;
+
+const svg = d3.select("#graph")
+  .attr("width", width).attr("height", height);
+
+const g = svg.append("g");
+
+// zoom + pan
+const zoom = d3.zoom()
+  .scaleExtent([0.1, 8])
+  .on("zoom", e => g.attr("transform", e.transform));
+svg.call(zoom);
+
+// Reset on R
+document.addEventListener("keydown", e => {
+  if (e.key === "r" || e.key === "R") {
+    svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity);
+  }
+});
+
+// build index map
+const nodeById = {};
+graphData.nodes.forEach(n => nodeById[n.id] = n);
+
+// simulation
+const sim = d3.forceSimulation(graphData.nodes)
+  .force("link", d3.forceLink(graphData.links)
+    .id(d => d.id)
+    .distance(d => {
+      const types = new Set([nodeById[d.source.id || d.source]?.label,
+                             nodeById[d.target.id || d.target]?.label]);
+      if (types.has("Actor")) return 180;
+      if (types.has("Sample")) return 130;
+      return 100;
+    })
+    .strength(0.5))
+  .force("charge", d3.forceManyBody().strength(-220))
+  .force("center", d3.forceCenter(width/2, height/2))
+  .force("collide", d3.forceCollide(28));
+
+// links
+const link = g.append("g").selectAll("line")
+  .data(graphData.links).join("line")
+  .attr("class", "link")
+  .attr("stroke", d => EDGE_COLOR[d.rel] || "#475569")
+  .attr("stroke-width", 1.2)
+  .attr("marker-end", "url(#arrow)");
+
+// nodes
+const node = g.append("g").selectAll(".node")
+  .data(graphData.nodes).join("g")
+  .attr("class", "node")
+  .call(d3.drag()
+    .on("start", (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on("drag",  (e, d) => { d.fx = e.x; d.fy = e.y; })
+    .on("end",   (e, d) => { if (!e.active) sim.alphaTarget(0); })
+  );
+
+const radius = d => d.label === "Actor" ? 14 : d.label === "Sample" ? 9 : 11;
+
+node.append("circle")
+  .attr("r", radius)
+  .attr("fill", d => COLOR[d.label] || "#94A3B8");
+
+node.append("text")
+  .attr("dy", d => radius(d) + 12)
+  .attr("text-anchor", "middle")
+  .text(d => d.name.length > 20 ? d.name.slice(0, 18) + "…" : d.name);
+
+// tooltip
+const tt = document.getElementById("tooltip");
+node.on("mousemove", (e, d) => {
+  const color = COLOR[d.label] || "#94A3B8";
+  tt.style.display = "block";
+  tt.style.left = (e.clientX + 16) + "px";
+  tt.style.top  = (e.clientY + 16) + "px";
+  tt.innerHTML = `
+    <div class="tt-name">${d.name}</div>
+    <span class="tt-label" style="background:${color}22;color:${color};border:1px solid ${color}44">${d.label}</span>
+    ${d.role ? `<div class="tt-line">Role: <span>${d.role}</span></div>` : ""}
+    ${d.geo  ? `<div class="tt-line">Geo: <span>${d.geo}</span></div>` : ""}
+    ${d.provider ? `<div class="tt-line">Provider: <span>${d.provider}</span></div>` : ""}
+    ${d.notes ? `<div class="tt-line" style="margin-top:4px;color:#8B949E;font-size:10px">${d.notes}</div>` : ""}
+  `;
+})
+.on("mouseleave", () => { tt.style.display = "none"; });
+
+// highlight connected on click
+let selected = null;
+node.on("click", (e, d) => {
+  e.stopPropagation();
+  if (selected === d.id) { selected = null; resetHighlight(); return; }
+  selected = d.id;
+  const connected = new Set([d.id]);
+  graphData.links.forEach(l => {
+    const s = l.source.id ?? l.source, t = l.target.id ?? l.target;
+    if (s === d.id) connected.add(t);
+    if (t === d.id) connected.add(s);
+  });
+  node.selectAll("circle")
+    .attr("opacity", n => connected.has(n.id) ? 1 : 0.2);
+  node.selectAll("text")
+    .attr("opacity", n => connected.has(n.id) ? 1 : 0.2);
+  link.attr("opacity", l => {
+    const s = l.source.id ?? l.source, t = l.target.id ?? l.target;
+    return (s === d.id || t === d.id) ? 1 : 0.05;
+  });
+});
+svg.on("click", resetHighlight);
+
+function resetHighlight() {
+  selected = null;
+  node.selectAll("circle").attr("opacity", 1);
+  node.selectAll("text").attr("opacity", 1);
+  link.attr("opacity", 0.55);
+}
+
+// filter buttons
+const filterDiv = document.getElementById("filter");
+const types = ["IP", "Domain", "Sample", "Actor", "Infra"];
+const activeTypes = new Set(types);
+
+types.forEach(t => {
+  const btn = document.createElement("div");
+  btn.className = "filter-btn active";
+  btn.style.background = COLOR[t] + "22";
+  btn.style.color = COLOR[t];
+  btn.style.borderColor = COLOR[t] + "44";
+  btn.textContent = t;
+  btn.dataset.type = t;
+  btn.addEventListener("click", () => {
+    if (activeTypes.has(t)) { activeTypes.delete(t); btn.className = "filter-btn inactive"; }
+    else { activeTypes.add(t); btn.className = "filter-btn active"; }
+    node.attr("display", d => activeTypes.has(d.label) ? null : "none");
+    link.attr("display", l => {
+      const sn = nodeById[l.source.id ?? l.source];
+      const tn = nodeById[l.target.id ?? l.target];
+      return (activeTypes.has(sn?.label) && activeTypes.has(tn?.label)) ? null : "none";
+    });
+  });
+  filterDiv.appendChild(btn);
+});
+
+// simulation tick
+sim.on("tick", () => {
+  link
+    .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+    .attr("x2", d => {
+      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+      const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      return d.target.x - dx/dist * (radius(d.target) + 8);
+    })
+    .attr("y2", d => {
+      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+      const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      return d.target.y - dy/dist * (radius(d.target) + 8);
+    });
+
+  node.attr("transform", d => `translate(${d.x},${d.y})`);
+});
+</script>
+</body>
+</html>

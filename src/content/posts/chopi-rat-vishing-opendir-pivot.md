@@ -342,7 +342,13 @@ The actor pulled six DNS records and deleted the debug log in under 20 minutes w
 
 ### The full infrastructure picture
 
-![Chopi RAT infrastructure graph — key nodes across Vultr, DigitalOcean, and Contabo, layered by functional role](/images/chopi-rat-vishing-opendir-pivot-infra-graph.png)
+<div style="border:1px solid #30363D;border-radius:8px;overflow:hidden;margin:1.5rem 0">
+<iframe src="/infra-graph.html" width="100%" height="560" style="display:block;border:none;background:#0D1117" title="Chopi RAT infrastructure graph — interactive, zoomable"></iframe>
+</div>
+
+*Interactive graph: scroll to zoom, drag to pan, click a node to highlight its connections. [Open full screen →](/infra-graph.html)*
+
+![Chopi RAT infrastructure graph — key nodes across Vultr, DigitalOcean, and Contabo, layered by functional role (static fallback)](/images/chopi-rat-vishing-opendir-pivot-infra-graph.png)
 
 ```text
 DELIVERY
