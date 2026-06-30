@@ -1,5 +1,5 @@
 ---
-title: "The Payload That Only Runs Once: A DPAPI Host-Locked Loader Hiding Behind OmniPage"
+title: "It Only Decrypts on the Victim: DPAPI Host-Locking in a ShadowPad .dat"
 description: "VirusTotal called it PlugX. It broke down into an RC4 layer I could crack offline, a ScatterBrain-flavoured shellcode stub, and then a wall: the real implant is sealed with machine-scoped DPAPI, so it only decrypts on the one victim it was built for. Here's everything up to that wall, why the wall is the whole point, and why I think this is closer to ShadowPad than PlugX."
 pubDate: "2026-06-30T12:00:00"
 permalink: "/2026/06/30/paper-dat-dpapi-host-locked-shadowpad/"
