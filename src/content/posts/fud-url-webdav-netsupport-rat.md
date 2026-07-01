@@ -70,9 +70,27 @@ Mode: 1
 Bot: B58CCD05
 ```
 
-The bot token `8863068816:AAE_841furjQGA3NwEYevapth0at2Jn1b4c` is hardcoded in the binary. The channel is `@supstuk`. `B58CCD05` is a campaign or victim-tracking ID baked into this build. Every victim that runs this file sends an identical knock to the same channel. The operator gets a notification the moment the payload executes — before the RAT installs, before C2 connects, just: "someone ran it."
+The bot token `8863068816:AAE_841furjQGA3NwEYevapth0at2Jn1b4c` is hardcoded in the binary. The `chat_id=@supstuk` in the URL is the target channel. `B58CCD05` is a campaign or victim-tracking ID baked into this build. Every victim that runs this file sends an identical knock. The operator gets a notification the moment the payload executes — before the RAT installs, before C2 connects, just: "someone ran it."
 
-This is a common pattern in lower-sophistication crews. Bot token in plaintext means an analyst who finds the binary can read the operator's notification channel. The token is also valid after the campaign ends, so anyone who discovers it later can still check the chat history — if `@supstuk` isn't private.
+This is a common pattern in lower-sophistication crews. Bot token in plaintext means an analyst who finds the binary can authenticate as the bot and read everything it's seen.
+
+That token is still valid. Running it through [telegram-bot-dumper](https://github.com/RasterSec/telegram-bot-dumper) against the live API pulled the full chat history. The bot's registered username is **`@luciknockbot`** — `@supstuk` is the operator's personal handle, not the bot name. Two Telegram accounts were subscribed to receive knock notifications:
+
+| Handle | Display name | Chat ID |
+|---|---|---|
+| `@Sup37man` | Aaron Le | 7054829327 |
+| `@Suppporttttttt` | Support 2 | 8053867293 |
+
+The knock messages contain the victim's Windows display name. Two confirmed infections as of July 1:
+
+```
+Willie Baker    — 2026-07-01 10:23
+Daniel Gonzales — 2026-07-01 10:24
+```
+
+`@Suppporttttttt` sent `/start` on **2026-06-22** — the day before the first known dropper sample appeared on VirusTotal. That's when the operator wired up the notification channel. Everything since then has been live.
+
+The `luci` prefix in `luciknockbot` is an operator persona marker. "Aaron Le" on `@Sup37man` follows a Vietnamese naming pattern (Le is a common Vietnamese family name), though the display name may be fabricated.
 
 ---
 
@@ -241,8 +259,11 @@ ksdfsdkjhodafguidfhqiugdugwdiufh.icu  random-string test domain (PDR, reg. 2026-
 
 # Telegram
 bot token:   8863068816:AAE_841furjQGA3NwEYevapth0at2Jn1b4c
-channel:     @supstuk
+bot username: @luciknockbot
+operator handles: @Sup37man (Aaron Le, ID 7054829327), @Suppporttttttt (Support 2, ID 8053867293)
+notification target: @supstuk
 campaign ID: B58CCD05
+confirmed victims: Willie Baker, Daniel Gonzales (machine display names, 2026-07-01)
 
 # GSK (obfuscated, NetSupport gateway auth)
 FH:I?ECFGH<GACDDGF:O=B
