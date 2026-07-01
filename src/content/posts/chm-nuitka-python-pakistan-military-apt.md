@@ -21,9 +21,9 @@ The execution technique is a CHM classic: an ActiveX shortcut embedded in the co
 
 The dropped EXE is `DPEs_2026-27-Final.exe.bin`.
 
-The DPE name is specific. DPEs — Defence Planning Estimates — are Pakistan's annual military budget planning documents. The fiscal year `2026-27` runs from July 2026 to June 2027. A file called `DPEs_2026-27-Final` would be of immediate interest to anyone in the Pakistani MoD or armed forces involved in budget, procurement, or planning. The `.bin` extension on the end does the same job as the `.z` trick in other campaigns: it's there to flip the file type away from `.exe` in email security policies that block executable attachments.
+DPEs is a very specific choice. Defence Planning Estimates are Pakistan's annual military budget planning documents. The fiscal year `2026-27` runs July 2026 to June 2027. A file called `DPEs_2026-27-Final` is exactly what someone in the Pakistani MoD or armed forces working on budget, procurement, or planning would expect to receive. The `.bin` on the end does the same job as the `.z` trick in other campaigns — flip the file type away from `.exe` so it clears email attachment policies.
 
-The lure isn't spray-and-pray. The combination of a restricted defense exhibition theme in the CHM and a named-document EXE with the exact format Pakistani military budget files use says the operator knows what they're targeting and who opens these things.
+This isn't spray-and-pray. Knowing the exact document format, the right fiscal year, and who opens them — that's operational familiarity with Pakistani defence bureaucracy that takes years to build.
 
 ---
 
@@ -35,7 +35,7 @@ What this means for analysis: traditional Python decompilers are useless. There'
 
 ESET identifies the family as `Python/Packed.Nuitka_AGen.EW`. CrowdStrike gives it 90% malicious confidence. Rising calls it `Backdoor.Agent/PYC!1.13CF5`. VirIT goes further: `Trojan.Win64.StealerT.DXX`. The PE timestamp on both the EXE and the DLL is `2026-02-16` — consistent, not spoofed, meaning the operator built this around five months before the campaign started.
 
-The bundle Nuitka extracts to `%TEMP%\onefile_XXXX\` tells a lot about what the payload does:
+What Nuitka extracts into `%TEMP%\onefile_XXXX\` maps out what the payload can do:
 
 ```
 client_exe.dll        core Python application (6.9 MB, Nuitka-compiled)
@@ -64,7 +64,7 @@ Crypto/Protocol/
 
 This is [PyCryptodome](https://pycryptodome.readthedocs.io/) — a complete Python cryptography library. AES with hardware acceleration. Salsa20. SHA variants. Keccak. Scrypt key derivation. That's not a payload that encrypts one file and moves on. It's a C2 agent built to encrypt everything it sends and receives, with enough cipher options to rotate algorithms.
 
-`_wmi.pyd` is for the system reconnaissance and anti-VM checks noted in the initial report. Python's WMI bindings let the payload query hardware details — hypervisor flags, CPU count, disk size, running processes — without touching the command line. `_ctypes.pyd` gives it direct Windows API access without going through Python's standard library wrappers.
+`_wmi.pyd` handles the system recon and anti-VM checks. Python's WMI bindings let the payload query hardware — hypervisor flags, CPU count, disk size, running processes — without touching the command line. `_ctypes.pyd` gives it direct Windows API access, no standard library wrappers in the way.
 
 ---
 
@@ -76,7 +76,7 @@ That IP is a G-Core Labs CDN edge node in Luxembourg (AS199524). Shodan shows on
 
 The `cl-glcb907925` subdomain is a G-Core CDN customer ID. The actor registered as a G-Core CDN customer, got assigned the identifier `glcb907925`, and pointed their content delivery configuration at a backend server. G-Core then routes requests matching `cl-glcb907925.gcdn.co` through the edge at `92.223.96.6` to wherever the actual C2 backend is sitting. That backend IP is hidden behind the CDN — we don't see it.
 
-The catch is that `92.223.96.6` isn't a dedicated malware server. VT's resolution history for that IP shows it resolving to Microsoft Windows Update delivery domains, Xbox Live, MSEdge update endpoints, and Azure traffic manager domains going back months:
+`92.223.96.6` isn't a dedicated malware server. VT's resolution history shows it resolving to Microsoft Windows Update delivery domains, Xbox Live, MSEdge update endpoints, and Azure traffic manager domains going back months:
 
 ```
 star.f.tlu.dl.delivery.mp.microsoft.com
@@ -94,16 +94,16 @@ This is deliberate. The operator picked a CDN that carries legitimate Microsoft 
 
 ## Attribution context
 
-The TTP set here has a well-documented signature:
+Everything here maps to a well-documented playbook:
 
-- CHM delivery targeting Pakistan military and government — used extensively by Sidewinder (also tracked as RattleSnake, APT-C-17, T-APT-04, Razor Tiger) since at least 2018
-- HHCTRL.OCX ActiveX bypass in compiled help documents — a documented Sidewinder technique
-- Pakistani military establishment as the primary target audience — core Sidewinder focus
-- Python-based backdoor as final payload — seen in Sidewinder campaigns throughout 2024 and 2025, including Nuitka-compiled variants
+- CHM delivery targeting Pakistan military and government — Sidewinder (also tracked as RattleSnake, APT-C-17, T-APT-04, Razor Tiger) has used this since at least 2018
+- HHCTRL.OCX ActiveX bypass — documented Sidewinder technique
+- Pakistani military as the primary target — Sidewinder's defining focus
+- Python backdoor as final payload — seen throughout Sidewinder campaigns in 2024 and 2025, including Nuitka-compiled variants
 
-Sidewinder is assessed with moderate-to-high confidence as India-attributed, active since at least 2012, and has run persistent campaigns against Pakistan, Bangladesh, Nepal, and Afghanistan. The shift to Nuitka compilation is a newer adaptation — earlier Sidewinder Python payloads used PyInstaller — but it fits the pattern of the group updating its toolchain to stay ahead of detection.
+Sidewinder is India-attributed, active since at least 2012, with persistent campaigns against Pakistan, Bangladesh, Nepal, and Afghanistan. The Nuitka compilation is a newer step up from PyInstaller, but it fits the same pattern of the group refreshing its toolchain when detection rates climb.
 
-I'm not making a definitive attribution call here. Multiple actors have replicated Sidewinder's CHM delivery TTP. But the combination of the specific document lure (correct Pakistani government budget document format), the correct fiscal year, the HHCTRL.OCX bypass, and the Python backdoor with WMI anti-VM checks sits squarely in the Sidewinder playbook.
+I'm not making a hard attribution call. Other actors have copied the CHM delivery TTP. But getting the document format right, the fiscal year right, and the exact HHCTRL.OCX bypass right — that's the Sidewinder playbook, not a coincidence.
 
 ---
 
