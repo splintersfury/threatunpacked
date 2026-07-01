@@ -97,9 +97,42 @@ VT's historical resolution data for `154.23.184.251` goes back to late 2023. Eve
 2026-06-12  qishuiwg.com       ← current campaign
 ```
 
-The naming conventions — `855a`, `hg348bet`, `mgm118`, `m1377`, `99348pk` — are all characteristic of Chinese-language online gambling platforms. `855a` and its variants are especially common in Chinese betting site clusters. `mgm118` mimics the MGM casino brand.
+The full resolution history for this IP runs to 40 domains, all from the same period:
 
-There's a two-year gap between the last gambling domain (March 2024) and the current C2 activation (June 2026). The server was either idle, running domains that haven't surfaced in VT's resolution data, or used for something that wasn't submitted to VT. What's clear is that the operator or the hosting account behind this IP has a history in the Chinese-language online gambling space — which is a well-documented feeder ecosystem for Southeast Asian cybercrime operations.
+```
+2023-11-19  99348ag.com / www.8550111.com
+2023-11-21  318588ag.com / 77348pk.com / 77348ag.com / 99348bg.com
+2023-11-26  hg348org0003k99348k.com / 508vip77348y99348w.com / 159000yhesunqingbetter.com
+2023-11-28  855a1.app / 855a2.app / 855a3.app / 318588.xyz  (+ www. variants)
+2023-11-29  855a6.app
+2023-12-06  348a.app
+2023-12-09  gg12322.com
+2023-12-10  99348pk.com
+2023-12-13  hg3800.cc
+2023-12-14  855a666.com
+2023-12-29  mgm118.xyz / m1377.com
+2024-01-14  hg348bet-855a77-855a7.com
+2024-01-22  855a.xyz
+2024-03-17  2.easydream.bet
+2026-06-12  qishuiwg.com          ← current C2
+```
+
+The naming conventions break down into identifiable gambling brands: the `855a` cluster (eight variants from `855a1.app` to `855a666.com`) is a single betting platform running rolling domain rotations. The `99348` / `77348` / `hg348` group run `ag`, `bg`, and `pk` suffixed domains — shorthand for Asia Gaming, BG Gaming, and poker tables. `mgm118` mimics the MGM casino brand. The concatenated URL `508vip77348y99348w.com` looks like an affiliate redirect link encoding multiple brand codes into a single domain.
+
+This is a hosting account that served a Chinese online gambling operation from November 2023 to March 2024, then went dormant for over two years before the Silverfox C2 came online in June 2026. The gap isn't unusual — hosting accounts in this space get recycled through brokers, passed between operators, or simply parked until someone needs cheap infrastructure with an established IP.
+
+The /24 neighbourhood around `154.23.184.251` tells the same story. A Shodan scan of `154.23.184.0/24` returns 210 results. The node at `.61` alone is running over a dozen Ncat proxies on non-standard ports, each fronting a different gambling domain:
+
+```
+154.23.184.61  :8443 988033.com  :443 3637365.com  :8605 866vip8.vip
+               :8467 394394.cc   :8023 qt.b6oi2u8y.com
+               :9090 b90app2.cc  :8899 wap.3637365.com
+               :8906 haoke696a124u9789.app  :8819 befi77.org  …
+```
+
+The node at `.117` hosts `bilibili.accountuserhub.com` — a credential-phishing domain targeting users of Bilibili, China's dominant video platform.
+
+This /24 is Chinese cybercrime hosting infrastructure with multiple tenants. The C2 server at `.251` is one slot in a much larger shared operation.
 
 ---
 
