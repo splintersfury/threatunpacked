@@ -169,6 +169,30 @@ Only two VT-tracked files have ever contacted `nohakob.icu`: `RELEASE FORM.pdf.u
 
 ---
 
+### Shodan pivot: the C2 server and a leaked nickname
+
+Querying `45.88.78.28` on Shodan fills in the server profile. It is a Windows machine: IIS 10.0 on port 80 returning 403 Forbidden, Microsoft RPC Endpoint Mapper on port 135, SMB v2 on port 445, and WS-Discovery on port 5357. Port 81 returns a 302 redirect to `https://45.88.78.28:444/` with a full HSTS header stack (`max-age=60000`, `Referrer-Policy: no-referrer`, `X-Frame-Options: SAMEORIGIN`). Port 444 is the NetSupport Manager gateway endpoint. No RDP exposed — the operator manages it another way.
+
+The hostname in reverse DNS is `6147040.ds-b.had.pm`, which is Zomro B.V.'s internal VPS naming scheme. The ISP shows as Peetinvest B.V., the upstream AS is AS204601.
+
+VT's historical resolution data for `45.88.78.28` reveals that this server has been operational and hosting attacker domains since at least April 2026 — three months before `RELEASE FORM.pdf.url` was submitted:
+
+| Date | Domain | Notes |
+|---|---|---|
+| 2026-04-19 | `ilush-daddy.icu` | First domain. Registered same day. |
+| 2026-05-18 | `ksdfsdkjhodafguidfhqiugdugwdiufh.icu` | Random-string test domain. |
+| 2026-06-16 | `nohakob.icu` | Active campaign C2. |
+
+All three domains share the same registrar (Public Domain Registry / PDR), use Cloudflare nameservers, and use the `.icu` TLD. The same pattern, the same stack, the same server.
+
+The test domain WHOIS has an email address through `swiftfynd.net` — a disposable email service registered via Alibaba Cloud HiChina in November 2024, with an MX record pointing to `temp-mail-pro.com`. That is a throwaway address, not a persistent identity.
+
+The first domain is not. `ilush-daddy.icu` was registered on April 19, 2026, the same day it was first pointed at this server. Nobody was going to remember this name from a threat report. It was a personal test domain. **Ilush** (Илюш) is a Russian-language diminutive of Ilya (Илья), a Slavic given name common across Russia, Ukraine, and Belarus. This is the most personal piece of infrastructure the operator left behind.
+
+The staging server gives us something complementary. Shodan's last crawl (`2026-06-29T02:36:51`) caught it running Apache 2.4.66 on Ubuntu with port 80 returning the stock Apache2 Ubuntu default page — last modified `Mon, 22 Jun 2026`. The server was provisioned a week before the first VT submission. OpenSSH 10.2p1 on port 22. No other services exposed. The SSH fingerprint doesn't match any other server in Shodan's index.
+
+---
+
 ### Putting it together
 
 The full chain from double-click to operator control:
@@ -177,7 +201,7 @@ The full chain from double-click to operator control:
 2. Windows WebClient mounts `\\85.11.161.22@80\share` over HTTP. `Rate_RATE_AGR_Jun29.exe` executes directly from the remote share — no file ever touches the local disk in the conventional download sense.
 3. The dropper checks for a debugger. If clean, it sends a Telegram knock to `@supstuk`: "Knock: 1, Mode: 1, Bot: B58CCD05". The operator now knows this victim ran the payload.
 4. The dropper fetches `NS2H.zip` from `easyfiles.cc`, extracts it, and installs `Updatesystem.exe` silently in `%TEMP%`.
-5. `Updatesystem.exe` (NetSupport Manager client32.exe) connects to `nohakob.icu:443` with the encoded GSK. The operator's NetSupport Manager console shows a new machine in the "Eval" room.
+5. `Updatesystem.exe` (NetSupport Manager client32.exe) connects to `nohakob.icu:443` (port 444 via redirect from port 81) with the encoded GSK. The operator's NetSupport Manager console shows a new machine in the "Eval" room.
 6. The operator has full remote desktop, file transfer, shell access, and keystroke logging — all via a legitimate commercial RAT with low AV detection, on a 16-day-old domain that no threat feed has touched.
 
 The lure theme — a release form and a rate agreement — suggests this is targeted at employees who handle contracts or HR documents. Not a spray campaign. The `B58CCD05` campaign ID implies the operator is tracking multiple concurrent campaigns with separate bot IDs.
@@ -206,17 +230,21 @@ e8cf924da6401e02f96c4639f257d410b2a6d4e8d5f6650ea9d57cbb4c758cff  client32.ini
 45532e8ecdccca684dd3b492c58485b0b2987893f5c7a3590c60f5fcaec4a27c  PCICHEK.DLL
 
 # Infrastructure
-85.11.161.22          staging opendir (HK, Dedik Services, AS207043)
-2.56.244.97           easyfiles.cc host (DE, 24fire GmbH, AS216063)
-nohakob.icu           NetSupport C2 gateway (reg. 2026-06-13, PDR/Cloudflare)
-45.88.78.28           NetSupport C2 IP (US, NovoServe, AS204601)
+85.11.161.22              staging opendir (Ubuntu Apache, prov. 2026-06-22, Dedik Services AS207043)
+2.56.244.97               easyfiles.cc host (DE, 24fire GmbH, AS216063)
+45.88.78.28               NetSupport C2 IP (Windows, Peetinvest/Zomro, AS204601)
+nohakob.icu               active C2 domain (PDR/Cloudflare, reg. 2026-06-13, → 45.88.78.28)
+
+# Historical domains on same C2 server (45.88.78.28)
+ilush-daddy.icu           first test domain (PDR/Cloudflare, reg. 2026-04-19) — operator nickname "ilush"
+ksdfsdkjhodafguidfhqiugdugwdiufh.icu  random-string test domain (PDR, reg. 2026-05-18)
 
 # Telegram
 bot token:   8863068816:AAE_841furjQGA3NwEYevapth0at2Jn1b4c
 channel:     @supstuk
 campaign ID: B58CCD05
 
-# GSK (obfuscated)
+# GSK (obfuscated, NetSupport gateway auth)
 FH:I?ECFGH<GACDDGF:O=B
 ```
 
@@ -224,4 +252,4 @@ FH:I?ECFGH<GACDDGF:O=B
 
 ### Detection notes
 
-A `file://\\host@port\share\` URL inside a `.url` file is a reliable detection signal — legitimate software does not deliver programs this way. The NetSupport components are identifiable by their PE version info and import hash even when renamed. The Telegram bot token is static across the life of a campaign and can be blocklisted at the network layer. `nohakob.icu` was 0/91 on VT at investigation time but should be considered malicious given the totality of context.
+A `file://\\host@port\share\` URL inside a `.url` file is a reliable detection signal — legitimate software does not deliver programs this way. The NetSupport components are identifiable by their PE version info and import hash even when renamed. The Telegram bot token is static across the life of a campaign and can be blocklisted at the network layer. `nohakob.icu` was 0/91 on VT at investigation time but should be considered malicious given the totality of context. The historical domains `ilush-daddy.icu` and `ksdfsdkjhodafguidfhqiugdugwdiufh.icu` resolve to the same C2 server and should also be blocked — their Shodan fingerprint (IIS 10.0 on port 80, NetSupport gateway on port 444 via port-81 redirect) is sufficiently specific to use for pivot hunting in network logs.
