@@ -1,8 +1,8 @@
 ---
 title: "One Tweet, Sixteen Servers: Pivoting the Chopi RAT Vishing Operation"
 description: "A WsgiDAV opendir gave me staging payloads and a leaked debug log. AES config RE confirmed all six C2 IPs and the full encrypted capability set. PE build timestamp forensics revealed two back-to-back build sessions; the operator's dropper cluster leaked their build-system path on VirusTotal. Neo4j graph of 70 nodes across 3 cloud providers. YARA rules included."
-pubDate: "2026-07-07T12:00:00"
-permalink: "/2026/07/07/chopi-rat-vishing-opendir-pivot/"
+pubDate: "2026-06-30T12:00:00"
+permalink: "/2026/06/30/chopi-rat-vishing-opendir-pivot/"
 tags: ["Threat Intel", "RAT", "Vishing", "Infrastructure", "Reverse Engineering", "WebSocket", "Shodan", "YARA", "Neo4j", "AES"]
 draft: false
 ---
