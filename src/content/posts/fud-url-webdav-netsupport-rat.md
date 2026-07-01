@@ -84,7 +84,7 @@ After sending the knock, the dropper fetches:
 https://easyfiles.cc/2026/6/ce0a3ffe-dc52-470b-8686-99cd20029255/NS2H.zip
 ```
 
-`easyfiles.cc` was registered on 2023-06-18 via NameSilo, with Cloudflare nameservers. The A record resolves to `2.56.244.97`, a server in AS216063 (24fire GmbH, Germany). The TLS certificate is a Traefik default — self-generated, no hostname. VT scores the domain 12/91 malicious. Looking at the full list of files that have been observed fetching from this host, it hosts content for dozens of unrelated actors: `.bat` loaders, Minecraft mod `.jar` files, packed EXEs with names like `BOMBA BLYET.exe` and `ConsoleApp1.exe`. This is not dedicated attacker infrastructure. It is a shared file-hosting platform that threat actors use because it is cheap, anonymous, and the UUID-based file paths are not guessable.
+`easyfiles.cc` was registered on 2023-06-18 via NameSilo, with Cloudflare nameservers. The A record resolves to `2.56.244.97`, a server in AS216063 (24fire GmbH, Germany). The TLS certificate is a Traefik default — self-generated, no hostname. VT scores the domain 12/91 malicious. Looking at the full list of files that have been observed fetching from this host, it hosts content for dozens of unrelated actors: `.bat` loaders, Minecraft mod `.jar` files, packed EXEs with names like `BOMBA BLYET.exe` and `ConsoleApp1.exe`. This is not dedicated attacker infrastructure. Actors use it because it's cheap, anonymous, and the UUID-based paths can't be enumerated.
 
 `NS2H.zip` (SHA256 `fa33f0af…`, 29/75 VT) expands to a package of files named after a well-known remote-access product:
 
@@ -97,9 +97,9 @@ https://easyfiles.cc/2026/6/ce0a3ffe-dc52-470b-8686-99cd20029255/NS2H.zip
 | `remcmdstub.exe` | Remote command stub | 3/76 |
 | `PCICHEK.DLL` | NetSupport PCI DLL | 1/77 |
 
-This is **NetSupport Manager**, a legitimate remote-access product from NetSupport Ltd. Threat actors have been deploying it as a RAT since at least 2018. The legitimate binary is digitally signed; VT flags `Updatesystem.exe` as `signed` with `invalid-signature` — the certificate is present but the signature does not validate, which is typical for repackaged NetSupport installs that modify the binary after signing. Kaspersky labels it `not-a-virus:HEUR:RemoteAdmin.Win32.NetSup.gen`. Rising calls it `PUF.RemoteAdmin!1.E606`. CrowdStrike flags it as grayware at 90% confidence.
+This is **NetSupport Manager**, a legitimate remote-access product from NetSupport Ltd. Threat actors have been deploying it as a RAT since at least 2018. The legitimate binary is digitally signed, but VT tags `Updatesystem.exe` as `signed` with `invalid-signature` — certificate present, signature doesn't verify. That's typical for repackaged NetSupport builds where something got modified after signing. Kaspersky calls it `not-a-virus:HEUR:RemoteAdmin.Win32.NetSup.gen`. Rising: `PUF.RemoteAdmin!1.E606`. CrowdStrike: grayware at 90% confidence.
 
-The rename from `client32.exe` to `Updatesystem.exe` is the only cosmetic change. On a compromised system, a process called `Updatesystem.exe` in `%TEMP%` or `%APPDATA%` does not immediately look like a remote-access tool to a casual observer.
+The only cosmetic change is the filename. `Updatesystem.exe` in `%TEMP%` doesn't scream "remote access tool" to anyone who isn't already looking for it.
 
 ---
 
@@ -135,13 +135,13 @@ SKMode=1
 SysTray=0
 ```
 
-Every option that would make the remote-access session visible to the victim is turned off. No system tray icon. No connection dialog. No chat menu, no disconnect option, no help request button. Room is `Eval` — a common staging room name that NetSupport operators use before sorting victims into active targets. The GSK (gateway shared key) is NetSupport's obfuscated authentication token for the gateway connection.
+Everything that would make the session visible to the victim is switched off. No system tray icon. No connection dialog. No chat menu, no disconnect option, no help request. Room is `Eval` — where NetSupport operators park new victims before sorting them. The GSK is NetSupport's obfuscated gateway authentication token.
 
-`nohakob.icu` was registered on **2026-06-13** — sixteen days before `RELEASE FORM.pdf.url` was first submitted to VT on 2026-06-29. The domain was registered via Public Domain Registry (PDR) and uses Cloudflare nameservers. Its A record resolves to `45.88.78.28`.
+`nohakob.icu` was registered **2026-06-13**, sixteen days before `RELEASE FORM.pdf.url` first appeared on VT. Registered via PDR, Cloudflare nameservers, A record pointing to `45.88.78.28`.
 
-`45.88.78.28` is in AS204601, NovoServe B.V., United States, network `45.88.78.0/23`. VT records zero malicious detections against it directly — it is clean infrastructure, registered specifically for this campaign. The hardcoded secondary gateway `45.88.78.28:443` and the DNS resolution of `nohakob.icu` point to the same server. Primary and secondary are the same host; the redundancy here is cosmetic.
+`45.88.78.28` is in AS204601 (Peetinvest B.V./Zomro, US), `45.88.78.0/23`. VT has zero malicious detections against it. The hardcoded secondary gateway and the domain's A record both land on the same box. Primary and secondary is the same server with a different label — the failover is cosmetic.
 
-Only two VT-tracked files have ever contacted `nohakob.icu`: `RELEASE FORM.pdf.url` and `NS2H.zip`. This is a single-campaign domain.
+Only two VT-tracked files have ever contacted `nohakob.icu`: the lure and `NS2H.zip`. Single-campaign infrastructure, freshly minted.
 
 ---
 
@@ -171,11 +171,11 @@ Only two VT-tracked files have ever contacted `nohakob.icu`: `RELEASE FORM.pdf.u
 
 ### Shodan pivot: the C2 server and a leaked nickname
 
-Querying `45.88.78.28` on Shodan fills in the server profile. It is a Windows machine: IIS 10.0 on port 80 returning 403 Forbidden, Microsoft RPC Endpoint Mapper on port 135, SMB v2 on port 445, and WS-Discovery on port 5357. Port 81 returns a 302 redirect to `https://45.88.78.28:444/` with a full HSTS header stack (`max-age=60000`, `Referrer-Policy: no-referrer`, `X-Frame-Options: SAMEORIGIN`). Port 444 is the NetSupport Manager gateway endpoint. No RDP exposed — the operator manages it another way.
+Shodan had the server indexed from June 30. It's a Windows box: IIS 10.0 on port 80 returning 403 Forbidden, RPC Endpoint Mapper on port 135, SMB v2 on 445, WS-Discovery on 5357. Port 81 returns a 302 with a full HSTS header block (`max-age=60000`, `Referrer-Policy: no-referrer`, `X-Frame-Options: SAMEORIGIN`) pointing to `https://45.88.78.28:444/`. Port 444 is the NetSupport gateway. No RDP open — the operator gets in some other way.
 
-The hostname in reverse DNS is `6147040.ds-b.had.pm`, which is Zomro B.V.'s internal VPS naming scheme. The ISP shows as Peetinvest B.V., the upstream AS is AS204601.
+Reverse DNS resolves to `6147040.ds-b.had.pm`, Zomro B.V.'s internal VPS naming scheme. Peetinvest B.V. is the listed ISP, upstream AS204601.
 
-VT's historical resolution data for `45.88.78.28` reveals that this server has been operational and hosting attacker domains since at least April 2026 — three months before `RELEASE FORM.pdf.url` was submitted:
+VT's resolution history for `45.88.78.28` is where it gets interesting. The server wasn't set up for this campaign. It has been running attacker domains since at least April 2026, three months before `RELEASE FORM.pdf.url` appeared:
 
 | Date | Domain | Notes |
 |---|---|---|
@@ -183,13 +183,13 @@ VT's historical resolution data for `45.88.78.28` reveals that this server has b
 | 2026-05-18 | `ksdfsdkjhodafguidfhqiugdugwdiufh.icu` | Random-string test domain. |
 | 2026-06-16 | `nohakob.icu` | Active campaign C2. |
 
-All three domains share the same registrar (Public Domain Registry / PDR), use Cloudflare nameservers, and use the `.icu` TLD. The same pattern, the same stack, the same server.
+Same registrar (PDR), same Cloudflare nameservers, same `.icu` TLD across all three. Same pattern, same stack, same server.
 
-The test domain WHOIS has an email address through `swiftfynd.net` — a disposable email service registered via Alibaba Cloud HiChina in November 2024, with an MX record pointing to `temp-mail-pro.com`. That is a throwaway address, not a persistent identity.
+The test domain WHOIS email goes through `swiftfynd.net`, a disposable mail service registered via Alibaba Cloud HiChina, MX pointing to `temp-mail-pro.com`. Throwaway, not worth chasing.
 
-The first domain is not. `ilush-daddy.icu` was registered on April 19, 2026, the same day it was first pointed at this server. Nobody was going to remember this name from a threat report. It was a personal test domain. **Ilush** (Илюш) is a Russian-language diminutive of Ilya (Илья), a Slavic given name common across Russia, Ukraine, and Belarus. This is the most personal piece of infrastructure the operator left behind.
+The first domain is a different story. `ilush-daddy.icu` was registered April 19, the same day VT first saw it resolve to this server. Nobody names a test domain like this for a threat report. **Ilush** (Илюш) is a Russian diminutive of Ilya (Илья), a common Slavic given name. It's the most personal thing the operator left on this infrastructure.
 
-The staging server gives us something complementary. Shodan's last crawl (`2026-06-29T02:36:51`) caught it running Apache 2.4.66 on Ubuntu with port 80 returning the stock Apache2 Ubuntu default page — last modified `Mon, 22 Jun 2026`. The server was provisioned a week before the first VT submission. OpenSSH 10.2p1 on port 22. No other services exposed. The SSH fingerprint doesn't match any other server in Shodan's index.
+The staging server tells a similar story. Shodan's crawl from June 29 found it running Apache 2.4.66 on Ubuntu, serving the stock Apache default page, last modified June 22 — a week before the campaign. OpenSSH 10.2p1 on port 22. Nothing else visible. The SSH key doesn't appear on any other server Shodan has indexed.
 
 ---
 
@@ -204,9 +204,9 @@ The full chain from double-click to operator control:
 5. `Updatesystem.exe` (NetSupport Manager client32.exe) connects to `nohakob.icu:443` (port 444 via redirect from port 81) with the encoded GSK. The operator's NetSupport Manager console shows a new machine in the "Eval" room.
 6. The operator has full remote desktop, file transfer, shell access, and keystroke logging — all via a legitimate commercial RAT with low AV detection, on a 16-day-old domain that no threat feed has touched.
 
-The lure theme — a release form and a rate agreement — suggests this is targeted at employees who handle contracts or HR documents. Not a spray campaign. The `B58CCD05` campaign ID implies the operator is tracking multiple concurrent campaigns with separate bot IDs.
+The lure names point at HR and finance staff specifically — a release form and a rate agreement. This isn't spray-and-pray. The `B58CCD05` campaign ID in the Telegram knock suggests the operator runs multiple campaigns in parallel with separate tracking IDs, probably targeting different industries or regions.
 
-The WebDAV delivery technique is worth highlighting. The `.url` file itself is what the victim receives — by email, by chat, by a shared folder link. It is 229 bytes. The executable never touches the victim's filesystem until after the initial checks pass. From a detection standpoint, the only local artifact at stage one is a tiny `.url` file with one AV hit. By the time a defender looks at endpoint logs, the stage-one EXE ran from a mapped network share that has since unmounted itself.
+The WebDAV delivery is the part defenders most often miss. The victim receives a 229-byte `.url` file — by email, by chat, by a shared folder link. When they double-click it, the stage-one EXE never downloads. It runs off a network share that mounts over HTTP and unmounts when the session closes. By the time anyone looks at endpoint telemetry, the only local artifact is a tiny shortcut file with one AV detection. The EXE has already run, phoned home, and pulled the NetSupport package.
 
 ---
 
