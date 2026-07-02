@@ -4,6 +4,7 @@ description: "A ZIP archive impersonating wartime asset disclosure paperwork del
 pubDate: "2026-07-02T14:00:00"
 permalink: "/2026/07/02/nakaz-mo-ukraine-lnk-ps1-downloader/"
 tags: ["ukraine", "lnk", "powershell", "gamaredon", "uac-0010", "spearphishing", "threat-intel", "russia"]
+thumb: "/images/nakaz-mo-ukraine-lnk-ps1-downloader-thumb.svg"
 ---
 
 The file looks like a government document. `NAKAZ_MO_perevirka_mayna.docx.lnk`. Open it in Windows Explorer and you see a Word icon — the folder has `imageres.dll` icon resource 97, which maps to a `.docx`. The extension is hidden by default in Windows. Click it and you have not opened a document.

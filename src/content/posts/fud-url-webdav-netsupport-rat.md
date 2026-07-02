@@ -4,6 +4,7 @@ description: "A Windows URL shortcut disguised as a PDF had 1/75 detections at s
 pubDate: "2026-07-01T12:00:00"
 permalink: "/2026/07/01/fud-url-webdav-netsupport-rat/"
 tags: ["Threat Intel", "NetSupport", "RAT", "Phishing", "WebDAV", "Telegram", "Infrastructure", "VirusTotal"]
+thumb: "/images/fud-url-webdav-netsupport-rat-thumb.svg"
 draft: false
 ---
 

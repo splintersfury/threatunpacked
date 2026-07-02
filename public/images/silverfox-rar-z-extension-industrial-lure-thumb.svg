@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#0f172a"/>
+  <!-- RAR→.z header -->
+  <rect x="8" y="8" width="80" height="14" rx="2" fill="#1e293b" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="28" y="17.5" font-family="monospace" font-size="7" fill="#fca5a5" text-anchor="middle">.rar</text>
+  <text x="48" y="17.5" font-family="monospace" font-size="7" fill="#475569" text-anchor="middle">→</text>
+  <text x="68" y="17.5" font-family="monospace" font-size="7" fill="#f87171" text-anchor="middle">.z</text>
+  <!-- Three lure files -->
+  <rect x="8" y="28" width="24" height="26" rx="2" fill="#1e293b" stroke="#334155" stroke-width="0.6"/>
+  <text x="20" y="39" font-family="monospace" font-size="5" fill="#64748b" text-anchor="middle">安全培训</text>
+  <text x="20" y="47" font-family="monospace" font-size="5" fill="#94a3b8" text-anchor="middle">safety</text>
+  <text x="20" y="52" font-family="monospace" font-size="5" fill="#94a3b8" text-anchor="middle">training</text>
+  <rect x="36" y="28" width="24" height="26" rx="2" fill="#1e293b" stroke="#334155" stroke-width="0.6"/>
+  <text x="48" y="39" font-family="monospace" font-size="5" fill="#64748b" text-anchor="middle">公章</text>
+  <text x="48" y="47" font-family="monospace" font-size="5" fill="#94a3b8" text-anchor="middle">company</text>
+  <text x="48" y="52" font-family="monospace" font-size="5" fill="#94a3b8" text-anchor="middle">seal</text>
+  <rect x="64" y="28" width="24" height="26" rx="2" fill="#1e293b" stroke="#334155" stroke-width="0.6"/>
+  <text x="76" y="39" font-family="monospace" font-size="5" fill="#64748b" text-anchor="middle">招聘</text>
+  <text x="76" y="47" font-family="monospace" font-size="5" fill="#94a3b8" text-anchor="middle">recruit</text>
+  <text x="76" y="52" font-family="monospace" font-size="5" fill="#94a3b8" text-anchor="middle">form</text>
+  <!-- Arrow -->
+  <text x="48" y="65" font-family="monospace" font-size="8" fill="#475569" text-anchor="middle">↓ Silverfox</text>
+  <!-- Gambling C2 -->
+  <rect x="8" y="72" width="80" height="16" rx="2" fill="#1c0a0a" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="48" y="81" font-family="monospace" font-size="6" fill="#f87171" text-anchor="middle">C2 ← gambling infra</text>
+  <text x="48" y="86.5" font-family="monospace" font-size="5.5" fill="#64748b" text-anchor="middle">2023–2024 · CN</text>
+</svg>

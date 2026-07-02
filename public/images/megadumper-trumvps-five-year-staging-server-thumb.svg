@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#0f172a"/>
+  <!-- Title bar -->
+  <rect x="8" y="8" width="80" height="12" rx="2" fill="#1e293b" stroke="#334155" stroke-width="0.5"/>
+  <text x="48" y="17" font-family="monospace" font-size="6.5" fill="#38bdf8" text-anchor="middle">103.68.109.59 · SG</text>
+  <!-- 5-year timeline spine -->
+  <line x1="48" y1="26" x2="48" y2="78" stroke="#334155" stroke-width="1.5"/>
+  <!-- Years -->
+  <circle cx="48" cy="28" r="4" fill="#475569"/>
+  <text x="56" y="31" font-family="monospace" font-size="6.5" fill="#64748b">2021</text>
+  <text x="10" y="31" font-family="monospace" font-size="6" fill="#64748b" text-anchor="end">upload</text>
+  <circle cx="48" cy="42" r="3" fill="#334155"/>
+  <text x="56" y="45" font-family="monospace" font-size="6.5" fill="#64748b">2022</text>
+  <circle cx="48" cy="54" r="3" fill="#334155"/>
+  <text x="56" y="57" font-family="monospace" font-size="6.5" fill="#64748b">2023</text>
+  <circle cx="48" cy="65" r="3" fill="#334155"/>
+  <text x="56" y="68" font-family="monospace" font-size="6.5" fill="#64748b">2024</text>
+  <circle cx="48" cy="76" r="5" fill="#f43f5e"/>
+  <text x="56" y="79.5" font-family="monospace" font-size="6.5" fill="#f87171">2026</text>
+  <text x="10" y="79.5" font-family="monospace" font-size="6" fill="#f43f5e" text-anchor="end">found</text>
+  <!-- Same filename label -->
+  <rect x="8" y="84" width="80" height="10" rx="2" fill="#1c0a0a" stroke="#ef4444" stroke-width="0.5"/>
+  <text x="48" y="91.5" font-family="monospace" font-size="5.5" fill="#fca5a5" text-anchor="middle">same filename · 0 detections</text>
+</svg>

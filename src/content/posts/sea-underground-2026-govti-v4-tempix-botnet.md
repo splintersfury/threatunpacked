@@ -4,6 +4,7 @@ description: "How a mass Next.js exploitation campaign named after the President
 pubDate: "2026-07-02T12:00:00"
 permalink: "/2026/07/02/sea-underground-2026-govti-v4-tempix-botnet/"
 tags: ["govti", "tempix", "indonesia", "botnet", "next.js", "cve-2026-31431", "southeast-asia", "threat-intel"]
+thumb: "/images/sea-underground-2026-govti-v4-tempix-botnet-thumb.svg"
 ---
 
 There is a shell script on VirusTotal disguised as a browser favicon. Its filename is `favico.ico`. Its extension is wrong, its MIME type is wrong, and if your Linux server runs it, within seconds a user named `prabowo` will exist on your box with a sudo-capable password and an SSH key commented `prabowo-gibran` — the names of Indonesia's current President and Vice-President.

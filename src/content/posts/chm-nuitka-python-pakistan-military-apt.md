@@ -4,6 +4,7 @@ description: "A CHM file themed around restricted Pakistani defense exhibitions 
 pubDate: "2026-07-01T14:00:00"
 permalink: "/2026/07/01/chm-nuitka-python-pakistan-military-apt/"
 tags: ["Threat Intel", "APT", "Pakistan", "CHM", "Nuitka", "Python", "CDN Fronting", "Sidewinder"]
+thumb: "/images/chm-nuitka-python-pakistan-military-apt-thumb.svg"
 draft: false
 ---
 

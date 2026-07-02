@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#0f172a"/>
+  <!-- Indonesia flag stripe -->
+  <rect x="0" y="0" width="96" height="4" fill="#ce1126"/>
+  <rect x="0" y="4" width="96" height="4" fill="#ffffff" opacity="0.9"/>
+  <!-- Main label -->
+  <rect x="8" y="14" width="80" height="14" rx="2" fill="#1e293b" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="48" y="23.5" font-family="monospace" font-size="6.5" fill="#f87171" text-anchor="middle">GOVTI v4 · TEMPIX · RCE</text>
+  <!-- Cloud targets grid -->
+  <rect x="8" y="34" width="24" height="18" rx="2" fill="#1e293b" stroke="#f59e0b" stroke-width="0.6"/>
+  <text x="20" y="43" font-family="monospace" font-size="5.5" fill="#fbbf24" text-anchor="middle">AWS</text>
+  <text x="20" y="50" font-family="monospace" font-size="5" fill="#64748b" text-anchor="middle">SG</text>
+  <rect x="36" y="34" width="24" height="18" rx="2" fill="#1e293b" stroke="#3b82f6" stroke-width="0.6"/>
+  <text x="48" y="43" font-family="monospace" font-size="5" fill="#93c5fd" text-anchor="middle">Digital</text>
+  <text x="48" y="50" font-family="monospace" font-size="5" fill="#93c5fd" text-anchor="middle">Ocean</text>
+  <rect x="64" y="34" width="24" height="18" rx="2" fill="#1e293b" stroke="#8b5cf6" stroke-width="0.6"/>
+  <text x="76" y="43" font-family="monospace" font-size="5" fill="#c4b5fd" text-anchor="middle">Next.js</text>
+  <text x="76" y="50" font-family="monospace" font-size="5" fill="#c4b5fd" text-anchor="middle">RCE</text>
+  <!-- Botnet indicator -->
+  <rect x="8" y="58" width="80" height="14" rx="2" fill="#1a0a0a" stroke="#ef4444" stroke-width="0.6"/>
+  <text x="48" y="68" font-family="monospace" font-size="6" fill="#f87171" text-anchor="middle">mass exploitation · backdoor</text>
+  <!-- Flag label -->
+  <rect x="8" y="76" width="38" height="12" rx="2" fill="#1e293b" stroke="#334155" stroke-width="0.5"/>
+  <text x="27" y="85" font-family="monospace" font-size="6" fill="#94a3b8" text-anchor="middle">Indonesia</text>
+  <rect x="50" y="76" width="38" height="12" rx="2" fill="#1e293b" stroke="#334155" stroke-width="0.5"/>
+  <text x="69" y="85" font-family="monospace" font-size="5.5" fill="#64748b" text-anchor="middle">cloud targets</text>
+</svg>

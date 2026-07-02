@@ -3,6 +3,7 @@ title: "Why This Blog Exists"
 description: "Most malware analysis content focuses on what a sample does. This blog focuses on why it matters during an incident. Through case studies, technical deep dives, and operational reflections, I write about: Clarity matters, assumptions are dangerous, and systems fail in ways their "
 pubDate: "2026-01-07T22:31:00"
 permalink: "/2026/01/07/why-this-blog-exists/"
+thumb: "/images/why-this-blog-exists-thumb.svg"
 ---
 
 Most malware analysis content focuses on what a sample does. This blog focuses on why it matters during an incident.

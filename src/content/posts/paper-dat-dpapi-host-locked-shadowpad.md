@@ -4,6 +4,7 @@ description: "VirusTotal called it PlugX. It broke down into an RC4 layer I coul
 pubDate: "2026-06-30T12:00:00"
 permalink: "/2026/06/30/paper-dat-dpapi-host-locked-shadowpad/"
 tags: ["ShadowPad", "PlugX", "DPAPI", "DLL Sideloading", "Reverse Engineering", "Threat Intel"]
+thumb: "/images/paper-dat-dpapi-host-locked-shadowpad-thumb.svg"
 draft: false
 ---
 

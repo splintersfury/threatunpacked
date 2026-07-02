@@ -4,6 +4,7 @@ description: "A WsgiDAV opendir gave me staging payloads and a leaked debug log.
 pubDate: "2026-06-30T12:00:00"
 permalink: "/2026/06/30/chopi-rat-vishing-opendir-pivot/"
 tags: ["Threat Intel", "RAT", "Vishing", "Infrastructure", "Reverse Engineering", "WebSocket", "Shodan", "YARA", "Neo4j", "AES"]
+thumb: "/images/chopi-rat-vishing-opendir-pivot-infra-graph.png"
 draft: false
 ---
 

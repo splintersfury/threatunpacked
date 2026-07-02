@@ -4,6 +4,7 @@ description: "A RAR renamed .z to bypass filters drops a Silverfox InnoSetup ins
 pubDate: "2026-07-01T12:00:00"
 permalink: "/2026/07/01/silverfox-rar-z-extension-industrial-lure/"
 tags: ["Threat Intel", "Silverfox", "Dropper", "Infrastructure", "InnoSetup", "Spreader"]
+thumb: "/images/silverfox-rar-z-extension-industrial-lure-thumb.svg"
 draft: false
 ---
 

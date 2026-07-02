@@ -4,6 +4,7 @@ description: "A Shodan scan for Singapore open directories surfaces a TRUMVPS se
 pubDate: "2026-07-02T18:00:00"
 permalink: "/2026/07/02/megadumper-trumvps-five-year-staging-server/"
 tags: ["megadumper", "credential-stealer", "trumvps", "singapore", "open-directory", "infostealer", "threat-intel", "dotnet"]
+thumb: "/images/megadumper-trumvps-five-year-staging-server-thumb.svg"
 ---
 
 Routine infrastructure scan, Singapore range. Shodan query for open directories, HTTP title "Index of". Most results are misconfigured personal NAS boxes or forgotten test servers. `103.68.109.59` — ASN 136557, Host Universal Pty Ltd, TRUMVPS — is neither. It is hosting eight files with no identifying context and no detections.

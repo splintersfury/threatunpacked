@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#0f172a"/>
+  <!-- Ukraine flag stripe top -->
+  <rect x="0" y="0" width="96" height="5" fill="#005BBB"/>
+  <rect x="0" y="5" width="96" height="4" fill="#FFD500"/>
+  <!-- Document lure -->
+  <rect x="10" y="16" width="34" height="42" rx="2" fill="#1e293b" stroke="#334155" stroke-width="0.7"/>
+  <rect x="10" y="16" width="34" height="10" rx="2" fill="#1d4ed8" opacity="0.6"/>
+  <text x="27" y="24" font-family="monospace" font-size="5.5" fill="#93c5fd" text-anchor="middle">NAKAZ_MO</text>
+  <text x="27" y="34" font-family="monospace" font-size="5" fill="#64748b" text-anchor="middle">майно.docx</text>
+  <text x="27" y="42" font-family="monospace" font-size="5" fill="#475569" text-anchor="middle">asset decl.</text>
+  <text x="27" y="50" font-family="monospace" font-size="5" fill="#475569" text-anchor="middle">wartime</text>
+  <!-- Arrow -->
+  <line x1="44" y1="37" x2="52" y2="37" stroke="#475569" stroke-width="1"/>
+  <polygon points="54,37 51,35 51,39" fill="#475569"/>
+  <!-- LNK → PS1 chain -->
+  <rect x="54" y="16" width="34" height="18" rx="2" fill="#1e293b" stroke="#fbbf24" stroke-width="0.7"/>
+  <text x="71" y="25" font-family="monospace" font-size="6" fill="#fbbf24" text-anchor="middle">.lnk</text>
+  <text x="71" y="32" font-family="monospace" font-size="5" fill="#64748b" text-anchor="middle">shortcut</text>
+  <line x1="71" y1="34" x2="71" y2="40" stroke="#475569" stroke-width="1"/>
+  <polygon points="71,43 68.5,39 73.5,39" fill="#475569"/>
+  <rect x="54" y="43" width="34" height="18" rx="2" fill="#1e293b" stroke="#a855f7" stroke-width="0.7"/>
+  <text x="71" y="52" font-family="monospace" font-size="6" fill="#d8b4fe" text-anchor="middle">.ps1</text>
+  <text x="71" y="59" font-family="monospace" font-size="5" fill="#64748b" text-anchor="middle">downloader</text>
+  <!-- 403 sandbox block -->
+  <rect x="10" y="64" width="76" height="24" rx="3" fill="#1c1917" stroke="#78716c" stroke-width="0.6"/>
+  <text x="48" y="74" font-family="monospace" font-size="7.5" font-weight="bold" fill="#a8a29e" text-anchor="middle">403</text>
+  <text x="48" y="84" font-family="monospace" font-size="5.5" fill="#57534e" text-anchor="middle">geo-fenced · sandbox blocked</text>
+</svg>

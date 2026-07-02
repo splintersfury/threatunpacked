@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#0f172a"/>
+  <!-- Three encryption layers stacked -->
+  <!-- Layer 1: RC4 (outermost, crackable) -->
+  <rect x="8" y="8" width="80" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="0.7"/>
+  <text x="18" y="17" font-family="monospace" font-size="6.5" fill="#22c55e">RC4</text>
+  <text x="18" y="26" font-family="monospace" font-size="5.5" fill="#64748b">20251118!!! · crackable</text>
+  <!-- Layer 2: Shellcode stub -->
+  <rect x="14" y="34" width="68" height="20" rx="3" fill="#1e293b" stroke="#f59e0b" stroke-width="0.7"/>
+  <text x="24" y="43" font-family="monospace" font-size="6.5" fill="#fbbf24">ScatterBrain stub</text>
+  <text x="24" y="51" font-family="monospace" font-size="5.5" fill="#64748b">shellcode loader</text>
+  <!-- Layer 3: DPAPI lock (innermost, unbreakable) -->
+  <rect x="20" y="58" width="56" height="30" rx="3" fill="#1c0a2a" stroke="#a855f7" stroke-width="1.2"/>
+  <!-- Lock icon -->
+  <rect x="39" y="67" width="18" height="14" rx="2" fill="#7c3aed" opacity="0.7"/>
+  <path d="M43 67 Q43 61 48 61 Q53 61 53 67" stroke="#a855f7" stroke-width="1.5" fill="none"/>
+  <circle cx="48" cy="73" r="2.5" fill="#e9d5ff"/>
+  <text x="48" y="85" font-family="monospace" font-size="5" fill="#c4b5fd" text-anchor="middle">DPAPI · victim-only</text>
+</svg>

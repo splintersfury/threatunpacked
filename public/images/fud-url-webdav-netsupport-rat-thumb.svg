@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#0f172a"/>
+  <!-- Detection badge - big impact number -->
+  <rect x="8" y="8" width="80" height="24" rx="3" fill="#1c0a0a" stroke="#ef4444" stroke-width="0.8"/>
+  <text x="48" y="18" font-family="monospace" font-size="7.5" fill="#f87171" text-anchor="middle">VT DETECTIONS</text>
+  <text x="30" y="28" font-family="monospace" font-size="11" font-weight="bold" fill="#ef4444" text-anchor="middle">1</text>
+  <text x="48" y="28" font-family="monospace" font-size="8" fill="#475569" text-anchor="middle">/</text>
+  <text x="66" y="28" font-family="monospace" font-size="11" fill="#94a3b8" text-anchor="middle">75</text>
+  <!-- Chain: .url → WebDAV → EXE -->
+  <rect x="8" y="38" width="22" height="16" rx="2" fill="#1e293b" stroke="#7c3aed" stroke-width="0.7"/>
+  <text x="19" y="49" font-family="monospace" font-size="6.5" fill="#a78bfa" text-anchor="middle">.url</text>
+  <line x1="30" y1="46" x2="37" y2="46" stroke="#475569" stroke-width="1"/>
+  <polygon points="39,46 36,44 36,48" fill="#475569"/>
+  <rect x="39" y="38" width="22" height="16" rx="2" fill="#1e293b" stroke="#0284c7" stroke-width="0.7"/>
+  <text x="50" y="49" font-family="monospace" font-size="5.5" fill="#38bdf8" text-anchor="middle">WebDAV</text>
+  <line x1="61" y1="46" x2="68" y2="46" stroke="#475569" stroke-width="1"/>
+  <polygon points="70,46 67,44 67,48" fill="#475569"/>
+  <rect x="70" y="38" width="18" height="16" rx="2" fill="#1e293b" stroke="#f97316" stroke-width="0.7"/>
+  <text x="79" y="49" font-family="monospace" font-size="6.5" fill="#fb923c" text-anchor="middle">.exe</text>
+  <!-- Telegram beacon -->
+  <rect x="8" y="60" width="48" height="28" rx="3" fill="#1e293b" stroke="#0088cc" stroke-width="0.7"/>
+  <circle cx="24" cy="74" r="9" fill="#0088cc" opacity="0.8"/>
+  <polygon points="24,68 31,74 24,80 17,74" fill="white" opacity="0.9"/>
+  <text x="44" y="70" font-family="monospace" font-size="5.5" fill="#94a3b8" text-anchor="middle">operator</text>
+  <text x="44" y="79" font-family="monospace" font-size="5.5" fill="#38bdf8" text-anchor="middle">notified</text>
+  <!-- NetSupport badge -->
+  <rect x="60" y="60" width="28" height="28" rx="3" fill="#1e293b" stroke="#334155" stroke-width="0.7"/>
+  <text x="74" y="72" font-family="monospace" font-size="5" fill="#64748b" text-anchor="middle">NetSupport</text>
+  <text x="74" y="81" font-family="monospace" font-size="6" fill="#f59e0b" text-anchor="middle">RAT</text>
+</svg>
