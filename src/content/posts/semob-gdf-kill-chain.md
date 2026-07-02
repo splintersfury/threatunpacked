@@ -4,6 +4,7 @@ description: "File timestamps preserved inside a 9.1GB archive found on a Chines
 pubDate: "2026-07-02T22:00:00"
 permalink: "/2026/07/02/semob-gdf-kill-chain/"
 tags: ["kill-chain", "mitre-attack", "brazil", "gdf", "semob", "dirtypipe", "cve-2022-0847", "fscan", "lateral-movement", "china", "behinder", "gitlab", "credential-spray", "wordpress", "open-directory", "threat-intel"]
+thumb: "/images/semob-gdf-kill-chain-thumb.svg"
 ---
 
 In a [previous investigation](/2026/07/02/behinder-alibaba-brazil-staging/) we found a 9.1GB archive on a Chinese threat actor's open-directory staging server at `47.237.75.155` (Alibaba Cloud, Singapore). The file was named `semob.df.gov.br.tar.gz` — after Brazil's Federal District transport secretariat. The initial hypothesis was exfiltration or a phishing clone. Streaming the archive's contents without downloading all 9.1GB made the actual answer clear.

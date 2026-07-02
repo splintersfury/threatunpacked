@@ -4,6 +4,7 @@ description: "A Shodan hit on an Alibaba Cloud Singapore IP leads to a 9.1GB arc
 pubDate: "2026-07-02T20:00:00"
 permalink: "/2026/07/02/behinder-alibaba-brazil-staging/"
 tags: ["behinder", "bingxie", "ice-scorpion", "china", "alibaba-cloud", "singapore", "open-directory", "brazil", "semob", "staging-server", "threat-intel", "gpudrive", "sfx-dropper", "dirtypipe", "cve-2022-0847", "fscan", "lateral-movement", "brazil-government", "gdf"]
+thumb: "/images/behinder-alibaba-brazil-staging-thumb.svg"
 ---
 
 Another Singapore open directory. Same Shodan query — `http.title:"Index of /" country:SG http.html:.exe` — different IP: `47.237.75.155`. This one is on Alibaba Cloud, AS45102, running Apache/2.4.52 on Ubuntu. Three files:

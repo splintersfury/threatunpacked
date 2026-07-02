@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#0f172a"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="96" height="96" fill="url(#g)"/>
+  <!-- Kill chain spine -->
+  <line x1="48" y1="10" x2="48" y2="86" stroke="#334155" stroke-width="1.5"/>
+  <!-- Stage dots + labels (mini kill chain) -->
+  <!-- Initial Access -->
+  <circle cx="48" cy="12" r="4" fill="#f43f5e"/>
+  <text x="55" y="15" font-family="monospace" font-size="5.5" fill="#f43f5e">Init. Access</text>
+  <!-- Cred Access -->
+  <circle cx="48" cy="26" r="4" fill="#f97316"/>
+  <text x="55" y="29" font-family="monospace" font-size="5.5" fill="#f97316">Cred Access</text>
+  <!-- Discovery -->
+  <circle cx="48" cy="40" r="4" fill="#eab308"/>
+  <text x="55" y="43" font-family="monospace" font-size="5.5" fill="#eab308">Discovery</text>
+  <!-- Priv Esc -->
+  <circle cx="48" cy="54" r="4" fill="#a855f7"/>
+  <text x="55" y="57" font-family="monospace" font-size="5.5" fill="#a855f7">Priv Esc</text>
+  <!-- Lateral Movement -->
+  <circle cx="48" cy="68" r="4" fill="#3b82f6"/>
+  <text x="55" y="71" font-family="monospace" font-size="5.5" fill="#3b82f6">Lateral Mvmt</text>
+  <!-- Collection -->
+  <circle cx="48" cy="82" r="4" fill="#10b981"/>
+  <text x="55" y="85" font-family="monospace" font-size="5.5" fill="#10b981">Collection</text>
+  <!-- Left side: BR flag accent -->
+  <rect x="6" y="8" width="28" height="80" rx="3" fill="#1e293b" stroke="#334155" stroke-width="0.5"/>
+  <text x="20" y="36" font-family="monospace" font-size="6" fill="#22c55e" text-anchor="middle">SEMOB</text>
+  <text x="20" y="46" font-family="monospace" font-size="5" fill="#64748b" text-anchor="middle">GDF</text>
+  <text x="20" y="58" font-family="monospace" font-size="5" fill="#64748b" text-anchor="middle">Brazil</text>
+  <text x="20" y="20" font-family="monospace" font-size="8" fill="#f59e0b" text-anchor="middle">BR</text>
+  <text x="20" y="76" font-family="monospace" font-size="8" fill="#ef4444" text-anchor="middle">CN</text>
+</svg>
