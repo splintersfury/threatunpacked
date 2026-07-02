@@ -67,18 +67,18 @@ From the `@tuaek_bot` "valhala" group, the bot's history is a live feed of a dev
 **`dakar.geoafrica.fr`** — Next.js container running as root inside Docker. Environment variables exfiltrated:
 ```
 OPENROUTER_API_KEY=sk-or-v1-[REDACTED]
-DATABASE_URL=postgresql://postgres:SpaceBaktrop1984!!ADMARION@geoafrica.fr:5436/livrata?schema=public
+DATABASE_URL=postgresql://postgres:[REDACTED]@geoafrica.fr:5436/livrata?schema=public
 ```
 
 **`49.13.137.75`** — P2P crypto market platform, running as root:
 ```
-DATABASE_URL=postgresql://postgres:postgres@postgres:5432/decoyp2pmarket?schema=public
+DATABASE_URL=postgresql://[REDACTED]@postgres:5432/decoyp2pmarket?schema=public
 ```
 Stack includes `wagmi ^3.6.1` — the React Web3 library. Crypto application, weak database credentials.
 
 **`http://www.hiiot.io`** — AWS Singapore (`HOSTNAME=ip-172-32-0-110.ap-southeast-1.compute.internal`). The container leaked its ECS credentials relay URI:
 ```
-AWS_CONTAINER_CREDENTIALS_RELATIVE_URI=/v2/credentials/d32f2d5c-41ab-4903-8fe1-b287784a9e51
+AWS_CONTAINER_CREDENTIALS_RELATIVE_URI=/v2/credentials/[REDACTED]
 ```
 This URI — only reachable from inside the container — hands over temporary AWS IAM credentials from `169.254.170.2`. The attacker got it from `/proc`. Whatever S3 buckets, DynamoDB tables, or Lambda functions the task role can reach, they can reach too.
 
@@ -338,7 +338,7 @@ While TEMPIX goes after servers, a separate operation went after the people who 
 A 109KB HTML file presents itself as a PDF viewer titled "Document.pdf". Click any button and it shows a login form. Enter your credentials and:
 
 ```javascript
-const botToken = '8720305068:AAEfYSvdIjXZvzZrrkbJ8xnHIlPGWRbMZQk';
+const botToken = '8720305068:[REDACTED]';
 const chatId = '8551003759';
 const message = `IBOYSMARTIFY PDF Login\nUsername: ${username}\nPassword: ${password}\nIP: ${ip}`;
 ```
@@ -347,11 +347,11 @@ The bot — `@tentrdt_bot` — was live. We dumped 300 messages across two chats
 
 The kit runs four phishing templates simultaneously: IBOYSMARTIFY PDF Login, General Webmail ReZulT (with city-level GeoIP lookup), ZEUS_365 (Microsoft 365 harvester), and PAYMENT INVOICE LOgs. Vietnamese corporate accounts dominated the victim list:
 
-- `thuong@hcarbon.com` — H Carbon, Dong Nai province — captured twice
-- `service@dongtaycorp.vn` — Ho Chi Minh City — captured four times in five minutes (redirect loop)
-- `hong.truong@hbcg.vn` — HBCG Vietnam, HCMC
-- `miftah@algieskomputindo.com` — PT Algies Komputindo, Indonesia
-- `bnhinfo@bnh.co.th` — BNH Group, Thailand
+- `[victim]@hcarbon.com` — H Carbon, Dong Nai province — captured twice
+- `[victim]@dongtaycorp.vn` — Ho Chi Minh City — captured four times in five minutes (redirect loop)
+- `[victim]@hbcg.vn` — HBCG Vietnam, HCMC
+- `[victim]@algieskomputindo.com` — PT Algies Komputindo, Indonesia
+- `[victim]@bnh.co.th` — BNH Group, Thailand
 
 The "Checker" field in every notification — `email:password`, pre-formatted for credential stuffing tools — means credentials go straight into a checker the moment the notification lands. The kit also validates MX records on every harvested address; only real corporate mail servers generate an alert. Junk addresses filter themselves out.
 
@@ -368,7 +368,7 @@ Beneath the phishing kits and the RCE tooling sits the labour force that makes i
 - App installs — higher payout
 - Keyword search-and-click — SEO manipulation
 
-Cash out requires 5,000 xu minimum, paid to Vietnamese bank accounts. The operator, `@buian09` (Bùi An), holds accounts at Vietcombank (`0211000420712`) and VPBank (`0779719447`). The same operator runs `@cutokhonglo_bot` — a gambling referral bot for `ric79.vin`. Two revenue streams, one operator.
+Cash out requires 5,000 xu minimum, paid to Vietnamese bank accounts. The operator, `@buian09` , holds accounts at Vietcombank (`[REDACTED]`) and VPBank (`[REDACTED]`). The same operator runs `@cutokhonglo_bot` — a gambling referral bot for `ric79.vin`. Two revenue streams, one operator.
 
 Admin commands in the leaked message history:
 
@@ -376,7 +376,7 @@ Admin commands in the leaked message history:
 /cxu 7648703245 100000
 ```
 
-`/cxu` adds xu to a user ID. That ID is the operator's own Telegram account. Bùi An topping up his own balance with his own bot's admin command.
+`/cxu` adds xu to a user ID. That ID is the operator's own Telegram account. The operator topping up his own balance with his own bot's admin command.
 
 ---
 
@@ -384,7 +384,7 @@ Admin commands in the leaked message history:
 
 Operator handle `@Ewako90` ran a classic adversary-in-the-middle campaign against Malaysian J&T Express customers in early June 2026. The phishing page served a three-stage flow — registration, OTP relay, password capture — designed to pass credentials through the real J&T login before the victim notices anything is wrong.
 
-25 real Malaysians in 25.5 hours across June 3–4, 2026. Real names in the dump: Mohd Nordin, Nur Adriana, Danielita anak Gruntang (the Dayak surname "anak" = "child of", indicating a Sarawak victim).
+25 real Malaysians in 25.5 hours across June 3–4, 2026. Victim names redacted; dump included residents from Sarawak (identified by Dayak naming conventions).
 
 Bot: `@Dalle677_BOT` (token `8704023429`).
 
@@ -411,7 +411,7 @@ CocCoc is Vietnam's dominant local browser — Chromium-based, tuned for Vietnam
 
 One confirmed exfiltration: **74 passwords** and **4,464 cookie rows** from a Viettel Vietnam IP in Cao Lãnh, Đồng Tháp province. The C2 is `103.149.252.249`, reverse-resolving to `grafana.innvie.vn` — registered to AI-Solutions Company Limited in Cao Lãnh, Đồng Tháp. The victim's IP is also Đồng Tháp. The attacker and victim are in the same province. Vietnam is a small country, even online.
 
-Operator: `@peterkar08` (Tuân Kiệt Phạm).
+Operator: `@peterkar08` .
 
 ---
 
@@ -466,7 +466,7 @@ The blocklist contains an embedded Telegram bot token — someone assembled it b
 
 **Vietnamese Click-Fraud**
 - Bot: `@scamvuotlink_bot`, token `8245097248`
-- Operator: `@buian09` (Bùi An) — Vietcombank `0211000420712`, VPBank `0779719447`
+- Operator: `@buian09`  — Vietcombank `[REDACTED]`, VPBank `[REDACTED]`
 
 **Malaysian AiTM**
 - Bot: `@Dalle677_BOT`, token `8704023429`, operator `@Ewako90`
