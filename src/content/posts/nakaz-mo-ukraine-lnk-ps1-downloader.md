@@ -139,7 +139,17 @@ A third file on the same C2 — `sleestak_payload_1.vbs` (`a741cbddad59fc56cb42c
 
 `SIA GOOD` (reg. LV `43603067005`, Brīvības iela 52, Riga) holds the RIPE block `193.169.194.0/23`. The AS is registered under a Central Asian individual name. This class of Latvian-registered, Central Asian-operated infrastructure is common across Eastern European threat clusters and rarely responds meaningfully to abuse reports.
 
-An unrelated `Pcillin_Crack.zip` (54 dets, containing malware named `Porn_Napster.exe`) is also hosted on the same Apache instance — a piracy-lure campaign sharing the server, not the campaign.
+The server's VT history shows it's been active since at least November 2023 and has hosted at least three distinct campaigns under different operators:
+
+| Period | Activity |
+|---|---|
+| Nov 2023 – Jan 2024 | Chinese email tracking campaigns (`heyunyishu.cn`, `cpcmx.cn`) |
+| April 1, 2024 | Port 8888: spear-phishing recon tracking against a UBS Securities Associate Director and at least one Gmail target — standard email open-pixel to log when the target reads the message |
+| June 2026 | Sleestak / NAKAZ MO Ukrainian MoD campaign (this article) |
+
+The April 2024 operator is unrelated to Sleestak. The pattern is consistent with durable bulletproof hosting that takes any paying customer: the IP stays stable, the tenants rotate. This also means abuse reports sent to SIA GOOD or RIPE in 2024 — if any were filed — didn't touch the server. It was still available for the next group two years later.
+
+An unrelated `Pcillin_Crack.zip` (54 dets, containing malware named `Porn_Napster.exe`) is also hosted on the current Apache instance — a cracked-software lure from yet another actor sharing the same server.
 
 ---
 
