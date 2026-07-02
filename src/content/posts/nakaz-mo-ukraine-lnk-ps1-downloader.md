@@ -129,6 +129,8 @@ A third file on the same C2 — `sleestak_payload_1.vbs` (`a741cbddad59fc56cb42c
 
 ## Infrastructure
 
+![Infrastructure map — SIA GOOD /23 subnet, three servers, four campaigns](/diagrams/nakaz-infra-subnet.svg)
+
 | Host | Details | Role |
 |---|---|---|
 | `193.169.194.86` | Apache 2.4.52 / Ubuntu / port 80 | C2 — PS1 staging server |
@@ -168,6 +170,8 @@ This is not the same operation as Sleestak. The UBS tracking used port 8888; Sle
 That's the point of bulletproof infrastructure. The IP block stays stable. The tenants rotate. Abuse reports, if any were filed against the UBS campaign, had no effect — the server was still available in June 2026 for the next group.
 
 The full tenant timeline on this `/23`:
+
+![Tenant timeline — 193.169.194.0/23, Nov 2023 to present](/diagrams/nakaz-tenant-timeline.svg)
 
 | Period | Servers | Campaign |
 |---|---|---|
