@@ -41,6 +41,18 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
   </article>
 </BaseLayout>
 
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+  document.querySelectorAll('pre > code.language-mermaid').forEach((code) => {
+    const div = document.createElement('div');
+    div.className = 'mermaid not-prose';
+    div.textContent = code.textContent ?? '';
+    code.parentElement.replaceWith(div);
+  });
+  mermaid.run();
+</script>
+
 <style>
   .post-head { padding: 3rem 0 1.5rem; }
   .cmd { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); margin: 0 0 1.2rem; }
