@@ -132,24 +132,51 @@ A third file on the same C2 — `sleestak_payload_1.vbs` (`a741cbddad59fc56cb42c
 | Host | Details | Role |
 |---|---|---|
 | `193.169.194.86` | Apache 2.4.52 / Ubuntu / port 80 | C2 — PS1 staging server |
+| `193.169.194.85` | Apache 2.4.52 / Ubuntu / port 80+22 | Companion server, same template |
+| `193.169.194.92` | Apache 2.4.52 / Ubuntu / port 80 | Same subnet, redirects to google.de |
 | ASN 214576 | "Berdiev Ruslan Mukhabatovich" | Bulletproof-adjacent hosting |
 | SIA GOOD, Riga, Latvia | RIPE ORG-SG425-RIPE | IP block registrant |
 | `/cr44g/` | v1 campaign path | `fifthbelong.ps1`, `sponsorinput.ps1` |
 | `/krr4g/` | v2 campaign path | `philanthropyephyra.ps1`, `angeldogsled.ps1` |
 
-`SIA GOOD` (reg. LV `43603067005`, Brīvības iela 52, Riga) holds the RIPE block `193.169.194.0/23`. The AS is registered under a Central Asian individual name. This class of Latvian-registered, Central Asian-operated infrastructure is common across Eastern European threat clusters and rarely responds meaningfully to abuse reports.
+`SIA GOOD` (reg. LV `43603067005`, Brīvības iela 52, Riga) holds the RIPE block `193.169.194.0/23`. The AS is registered under a Central Asian individual name — Latvian-registered, Central Asian-operated, and non-responsive to abuse reports. The `.86` server runs Apache 2.4.52 (Ubuntu 22.04 vintage), unpatched since approximately 2022, and has accumulated over 75 CVEs in Shodan's fingerprint — including CVE-2023-25690 (HTTP request smuggling via mod_proxy, CVSS 9.8) and a cluster of 2024 Apache information-disclosure and SSRF bugs. The operator either doesn't know or doesn't care.
 
-The server's VT history shows it's been active since at least November 2023 and has hosted at least three distinct campaigns under different operators:
+---
 
-| Period | Activity |
-|---|---|
-| Nov 2023 – Jan 2024 | Chinese email tracking campaigns (`heyunyishu.cn`, `cpcmx.cn`) |
-| April 1, 2024 | Port 8888: spear-phishing recon tracking against a UBS Securities Associate Director and at least one Gmail target — standard email open-pixel to log when the target reads the message |
-| June 2026 | Sleestak / NAKAZ MO Ukrainian MoD campaign (this article) |
+## Before Sleestak: The UBS Securities Tracking Campaign
 
-The April 2024 operator is unrelated to Sleestak. The pattern is consistent with durable bulletproof hosting that takes any paying customer: the IP stays stable, the tenants rotate. This also means abuse reports sent to SIA GOOD or RIPE in 2024 — if any were filed — didn't touch the server. It was still available for the next group two years later.
+Pivoting on the full `/23` subnet reveals that `.85` and `.92` — adjacent servers with identical Apache configurations — were also running port 8888, and their VT URL history tells a different story from the Ukrainian campaign.
 
-An unrelated `Pcillin_Crack.zip` (54 dets, containing malware named `Porn_Napster.exe`) is also hosted on the current Apache instance — a cracked-software lure from yet another actor sharing the same server.
+Starting in November 2023, someone used these three servers to deploy a self-hosted email open-tracker. The URL pattern is textbook: `/o/[target-email]/[guid].gif?sendTime=[timestamp]`. When a target opens the phishing email, their mail client fetches the GIF, and the server logs the exact time. The operator sees who read what and when.
+
+The development trail is visible in the data:
+
+| Server | Date | Target |
+|---|---|---|
+| `.85` | Nov 29, 2023 | `joe@doe.dom` — developer test (`.dom` is not a real TLD) |
+| `.85` | Dec 8, 2023 | Secondary Gmail target |
+| `.85` | Dec 15 + Dec 29, 2023 | `joe@doe.dom` — more tests |
+| `.85` | Dec 22, 2023 | UBS Securities employee #1 |
+| `.85` | Dec 27, 2023 | UBS Securities employee #2 |
+| `.86` | Apr 1, 2024 | UBS Securities employee #3 + Gmail target |
+| `.92` | Apr 10, 2024 | Same Gmail target (re-sent or re-opened) |
+
+`joe@doe.dom` is the actor testing their own platform — four sends across November–December 2023 before they moved to live targets. The email addresses for the UBS employees follow the `firstname.lastname@ubssecurities.com` format; the targets are confirmed-real UBS Securities personnel. The campaign ran from December 2023 through at least April 2024 across all three servers.
+
+This is not the same operation as Sleestak. The UBS tracking used port 8888; Sleestak used port 80. The techniques and objectives are entirely different: financial sector spear-phishing recon versus a Ukrainian military-targeted malware downloader. What they share is the hosting provider.
+
+That's the point of bulletproof infrastructure. The IP block stays stable. The tenants rotate. Abuse reports, if any were filed against the UBS campaign, had no effect — the server was still available in June 2026 for the next group.
+
+The full tenant timeline on this `/23`:
+
+| Period | Servers | Campaign |
+|---|---|---|
+| Nov 2023 – Jan 2024 | `.85`, `.86` | Chinese email tracking (`heyunyishu.cn`, `cpcmx.cn`) |
+| Dec 2023 – Apr 2024 | `.85`, `.86`, `.92` | UBS Securities financial spear-phishing recon |
+| 2024 (concurrent) | `.92` | Phishing domains (`homedeotcomsurvey.cfd`, `ipl2025.cfd`, `playrikvip.icu`) |
+| Jun 2026 | `.86` | Sleestak / NAKAZ MO Ukrainian MoD campaign |
+
+An unrelated `Pcillin_Crack.zip` (54 dets, containing `Porn_Napster.exe`) is currently hosted on the same `.86` Apache instance alongside the Sleestak paths — a cracked-software lure from yet another tenant sharing the server.
 
 ---
 
