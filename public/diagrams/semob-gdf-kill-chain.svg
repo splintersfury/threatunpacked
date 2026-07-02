@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1410" width="1000" height="1410"
+     font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">
+
+  <!-- Background -->
+  <rect width="1000" height="1410" fill="#0f172a"/>
+
+  <!-- Header -->
+  <text x="500" y="36" text-anchor="middle" font-size="21" font-weight="700" fill="#f8fafc" letter-spacing="0.3">GDF / SEMOB Intrusion — Kill Chain</text>
+  <text x="500" y="57" text-anchor="middle" font-size="12.5" fill="#64748b">Brazil Federal District Government · December 2024 – April 2026 · Attributed: Chinese-speaking operator</text>
+
+  <!-- Timeline spine -->
+  <line x1="140" y1="78" x2="140" y2="1375" stroke="#1e293b" stroke-width="2"/>
+
+  <!-- Arrowhead marker -->
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#1e3a5f"/>
+    </marker>
+  </defs>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 1 — INITIAL ACCESS  y=80 h=95
+       ═══════════════════════════════════════════════════════ -->
+  <circle cx="140" cy="127" r="5" fill="#f43f5e" stroke="#0f172a" stroke-width="2"/>
+  <text x="127" y="121" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">pre-Dec 21</text>
+  <text x="127" y="135" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">2024</text>
+
+  <rect x="155" y="80" width="820" height="95" rx="6" fill="#1e293b"/>
+  <rect x="155" y="80" width="5" height="95" rx="3" fill="#f43f5e"/>
+  <text x="171" y="96" font-size="9.5" font-weight="700" fill="#f43f5e" letter-spacing="1.8">INITIAL ACCESS</text>
+  <text x="966" y="96" text-anchor="end" font-size="9.5" fill="#f43f5e" font-family="'Courier New', monospace">T1190 · T1505.003</text>
+  <text x="171" y="117" font-size="16.5" font-weight="700" fill="#f8fafc">WordPress RCE → PHP Web Shell (Behinder C2)</text>
+  <text x="171" y="139" font-size="12" fill="#94a3b8">Target: semob.df.gov.br — government WordPress site (Secretaria de Mobilidade, Brasília)</text>
+  <text x="171" y="158" font-size="12" fill="#94a3b8">WordPress vulnerability exploited → PHP web shell dropped → managed via Behinder (冰蝎) for encrypted C2</text>
+
+  <!-- Connector 1→2 -->
+  <line x1="565" y1="175" x2="565" y2="210" stroke="#1e3a5f" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 2 — CREDENTIAL ACCESS  y=213 h=78
+       ═══════════════════════════════════════════════════════ -->
+  <circle cx="140" cy="252" r="5" fill="#f97316" stroke="#0f172a" stroke-width="2"/>
+  <text x="127" y="246" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">Dec 21</text>
+  <text x="127" y="260" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">14:44</text>
+
+  <rect x="155" y="213" width="820" height="78" rx="6" fill="#1e293b"/>
+  <rect x="155" y="213" width="5" height="78" rx="3" fill="#f97316"/>
+  <text x="171" y="229" font-size="9.5" font-weight="700" fill="#f97316" letter-spacing="1.8">CREDENTIAL ACCESS</text>
+  <text x="966" y="229" text-anchor="end" font-size="9.5" fill="#f97316" font-family="'Courier New', monospace">T1552.004</text>
+  <text x="171" y="250" font-size="16.5" font-weight="700" fill="#f8fafc">SSH Private Key Stolen</text>
+  <text x="171" y="272" font-size="12" fill="#94a3b8">id_rsa copied from server · permissions -r-------- root/root · 2,602 bytes · confirms full root access</text>
+
+  <!-- Connector 2→3 -->
+  <line x1="565" y1="291" x2="565" y2="326" stroke="#1e3a5f" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 3 — DISCOVERY  y=329 h=78
+       ═══════════════════════════════════════════════════════ -->
+  <circle cx="140" cy="368" r="5" fill="#eab308" stroke="#0f172a" stroke-width="2"/>
+  <text x="127" y="362" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">Dec 23</text>
+  <text x="127" y="376" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">09:09</text>
+
+  <rect x="155" y="329" width="820" height="78" rx="6" fill="#1e293b"/>
+  <rect x="155" y="329" width="5" height="78" rx="3" fill="#eab308"/>
+  <text x="171" y="345" font-size="9.5" font-weight="700" fill="#eab308" letter-spacing="1.8">DISCOVERY</text>
+  <text x="966" y="345" text-anchor="end" font-size="9.5" fill="#eab308" font-family="'Courier New', monospace">T1046</text>
+  <text x="171" y="366" font-size="16.5" font-weight="700" fill="#f8fafc">Internal Network Reconnaissance</text>
+  <text x="171" y="388" font-size="12" fill="#94a3b8">SSH port scan of 10.230.80.x subnet · 45 live hosts identified · written to 22br.txt + 10.230.80-22-br.txt as brute-force input</text>
+
+  <!-- Connector 3→4 -->
+  <line x1="565" y1="407" x2="565" y2="442" stroke="#1e3a5f" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 4 — PRIVILEGE ESCALATION  y=445 h=120
+       ═══════════════════════════════════════════════════════ -->
+  <circle cx="140" cy="505" r="5" fill="#a855f7" stroke="#0f172a" stroke-width="2"/>
+  <text x="127" y="499" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">Dec 24</text>
+  <text x="127" y="513" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">21:32–23:32</text>
+
+  <rect x="155" y="445" width="820" height="120" rx="6" fill="#1e293b"/>
+  <rect x="155" y="445" width="5" height="120" rx="3" fill="#a855f7"/>
+  <text x="171" y="461" font-size="9.5" font-weight="700" fill="#a855f7" letter-spacing="1.8">PRIVILEGE ESCALATION + CREDENTIAL THEFT</text>
+  <text x="966" y="461" text-anchor="end" font-size="9.5" fill="#a855f7" font-family="'Courier New', monospace">T1068 · T1611 · T1003.007</text>
+  <text x="171" y="482" font-size="16.5" font-weight="700" fill="#f8fafc">DirtyPipe Container Escape + Heap Dump RSA</text>
+  <circle cx="180" cy="501" r="2.5" fill="#a855f7"/>
+  <text x="189" y="505" font-size="12" fill="#94a3b8">CVE-2022-0847 repo cloned 21:32 · dp.c compiled to a.out in 60 seconds · overwrites SUID binary → host root</text>
+  <circle cx="180" cy="521" r="2.5" fill="#a855f7"/>
+  <text x="189" y="525" font-size="12" fill="#94a3b8">socat (statically compiled, 367KB) uploaded 21:47 · creates persistent encrypted tunnel into GDF internal network</text>
+  <circle cx="180" cy="541" r="2.5" fill="#a855f7"/>
+  <text x="189" y="545" font-size="12" fill="#94a3b8">heapdumprsa (1.6KB) written 23:32 · RSA key extracted from running process heap via /proc · bypasses disk-level key access controls</text>
+
+  <!-- Connector 4→5 -->
+  <line x1="565" y1="565" x2="565" y2="600" stroke="#1e3a5f" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 5 — DWELL  y=603 h=68
+       ═══════════════════════════════════════════════════════ -->
+  <circle cx="140" cy="637" r="5" fill="#475569" stroke="#0f172a" stroke-width="2"/>
+  <text x="127" y="628" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">Dec 25 –</text>
+  <text x="127" y="642" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">Feb 6, 2025</text>
+
+  <rect x="155" y="603" width="820" height="68" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <rect x="155" y="603" width="5" height="68" rx="3" fill="#475569"/>
+  <text x="171" y="619" font-size="9.5" font-weight="700" fill="#475569" letter-spacing="1.8">DWELL — 45 DAYS SILENT</text>
+  <text x="171" y="640" font-size="16.5" font-weight="700" fill="#64748b">Stable Access · No Noisy Activity</text>
+  <text x="171" y="661" font-size="12" fill="#475569">Socat tunnel maintained · web shell persistent · Chinese New Year 2025 (Year of Snake) falls Jan 29 · operations resume Feb 7</text>
+
+  <!-- Connector 5→6 -->
+  <line x1="565" y1="671" x2="565" y2="706" stroke="#1e3a5f" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 6 — LATERAL MOVEMENT  y=709 h=238
+       ═══════════════════════════════════════════════════════ -->
+  <circle cx="140" cy="828" r="5" fill="#3b82f6" stroke="#0f172a" stroke-width="2"/>
+  <text x="127" y="822" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">Feb 7–11</text>
+  <text x="127" y="836" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">2025</text>
+
+  <rect x="155" y="709" width="820" height="238" rx="6" fill="#1e293b"/>
+  <rect x="155" y="709" width="5" height="238" rx="3" fill="#3b82f6"/>
+  <text x="171" y="725" font-size="9.5" font-weight="700" fill="#3b82f6" letter-spacing="1.8">LATERAL MOVEMENT + CREDENTIAL SPRAY</text>
+  <text x="966" y="725" text-anchor="end" font-size="9.5" fill="#3b82f6" font-family="'Courier New', monospace">T1046 · T1110.003 · T1021.004 · T1021.002</text>
+  <text x="171" y="746" font-size="16.5" font-weight="700" fill="#f8fafc">fscan Fleet-Wide Sweep — 5 Days, 4 Network Segments</text>
+  <text x="171" y="766" font-size="12" fill="#94a3b8">Chinese-built Go scanner (github.com/shadow1ng/fscan) · inline Chinese output confirms tool origin · pivot: 10.233.44.45</text>
+
+  <!-- 4 network segment boxes -->
+  <rect x="171" y="778" width="188" height="56" rx="4" fill="#0f172a" stroke="#1d4ed8" stroke-width="1"/>
+  <text x="265" y="796" text-anchor="middle" font-size="11.5" font-weight="700" fill="#60a5fa">10.233.x.x</text>
+  <text x="265" y="813" text-anchor="middle" font-size="10" fill="#64748b">10.233.144.0/24</text>
+  <text x="265" y="828" text-anchor="middle" font-size="10" fill="#64748b">Feb 7–8 · initial pivot host</text>
+
+  <rect x="367" y="778" width="188" height="56" rx="4" fill="#0f172a" stroke="#1d4ed8" stroke-width="1"/>
+  <text x="461" y="796" text-anchor="middle" font-size="11.5" font-weight="700" fill="#60a5fa">10.230.80–88.x</text>
+  <text x="461" y="813" text-anchor="middle" font-size="10" fill="#64748b">12 × /24 subnets · 279 hosts</text>
+  <text x="461" y="828" text-anchor="middle" font-size="10" fill="#64748b">Feb 10–11 · ~20 min per subnet</text>
+
+  <rect x="563" y="778" width="188" height="56" rx="4" fill="#0f172a" stroke="#1d4ed8" stroke-width="1"/>
+  <text x="657" y="796" text-anchor="middle" font-size="11.5" font-weight="700" fill="#60a5fa">172.19.x.x</text>
+  <text x="657" y="813" text-anchor="middle" font-size="10" fill="#64748b">Docker/container network</text>
+  <text x="657" y="828" text-anchor="middle" font-size="10" fill="#64748b">15 × /24 · Feb 11 · ~8 min each</text>
+
+  <rect x="759" y="778" width="197" height="56" rx="4" fill="#0f172a" stroke="#1d4ed8" stroke-width="1"/>
+  <text x="857" y="796" text-anchor="middle" font-size="11.5" font-weight="700" fill="#60a5fa">10.233.35.x</text>
+  <text x="857" y="813" text-anchor="middle" font-size="10" fill="#64748b">App servers: SIEDF · RStudio</text>
+  <text x="857" y="828" text-anchor="middle" font-size="10" fill="#64748b">Tomcat 9.0.54 · GitLab · Feb 11</text>
+
+  <!-- Divider -->
+  <line x1="171" y1="847" x2="961" y2="847" stroke="#1e3a5f" stroke-width="1"/>
+
+  <!-- Credential summary heading -->
+  <text x="171" y="865" font-size="11.5" font-weight="700" fill="#f8fafc">164 confirmed credential hits — single shared default support password</text>
+
+  <!-- Credential stat boxes -->
+  <rect x="171" y="875" width="175" height="50" rx="4" fill="#172554" stroke="#1d4ed8" stroke-width="1"/>
+  <text x="258" y="897" text-anchor="middle" font-size="21" font-weight="700" fill="#3b82f6">41</text>
+  <text x="258" y="916" text-anchor="middle" font-size="10" fill="#64748b">SSH root · Linux</text>
+
+  <rect x="354" y="875" width="175" height="50" rx="4" fill="#172554" stroke="#1d4ed8" stroke-width="1"/>
+  <text x="441" y="897" text-anchor="middle" font-size="21" font-weight="700" fill="#3b82f6">36</text>
+  <text x="441" y="916" text-anchor="middle" font-size="10" fill="#64748b">SSH user · Linux</text>
+
+  <rect x="537" y="875" width="175" height="50" rx="4" fill="#172554" stroke="#1d4ed8" stroke-width="1"/>
+  <text x="624" y="897" text-anchor="middle" font-size="21" font-weight="700" fill="#3b82f6">62</text>
+  <text x="624" y="916" text-anchor="middle" font-size="10" fill="#64748b">SMB administrator · Windows</text>
+
+  <rect x="720" y="875" width="237" height="50" rx="4" fill="#172554" stroke="#1d4ed8" stroke-width="1"/>
+  <text x="838" y="897" text-anchor="middle" font-size="21" font-weight="700" fill="#3b82f6">1</text>
+  <text x="838" y="916" text-anchor="middle" font-size="10" fill="#64748b">SSH moodle · Moodle e-learning</text>
+
+  <!-- Connector 6→7 -->
+  <line x1="565" y1="947" x2="565" y2="982" stroke="#1e3a5f" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 7 — COLLECTION  y=985 h=80
+       ═══════════════════════════════════════════════════════ -->
+  <circle cx="140" cy="1025" r="5" fill="#10b981" stroke="#0f172a" stroke-width="2"/>
+  <text x="127" y="1019" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">Feb 12</text>
+  <text x="127" y="1033" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">13:24</text>
+
+  <rect x="155" y="985" width="820" height="80" rx="6" fill="#1e293b"/>
+  <rect x="155" y="985" width="5" height="80" rx="3" fill="#10b981"/>
+  <text x="171" y="1001" font-size="9.5" font-weight="700" fill="#10b981" letter-spacing="1.8">COLLECTION</text>
+  <text x="966" y="1001" text-anchor="end" font-size="9.5" fill="#10b981" font-family="'Courier New', monospace">T1213 · T1560</text>
+  <text x="171" y="1022" font-size="16.5" font-weight="700" fill="#f8fafc">Internal GitLab Source Code Exfiltrated</text>
+  <text x="171" y="1044" font-size="12" fill="#94a3b8">gitlab_source_code/1.tar.gz · 754MB · directory finalised 14:23 (≈1 hour to archive all repositories)</text>
+
+  <!-- Connector 7→8 -->
+  <line x1="565" y1="1065" x2="565" y2="1100" stroke="#1e3a5f" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 8 — ARCHIVE  y=1103 h=92
+       ═══════════════════════════════════════════════════════ -->
+  <circle cx="140" cy="1149" r="5" fill="#06b6d4" stroke="#0f172a" stroke-width="2"/>
+  <text x="127" y="1143" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">Mar 12</text>
+  <text x="127" y="1157" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">23:30</text>
+
+  <rect x="155" y="1103" width="820" height="92" rx="6" fill="#1e293b"/>
+  <rect x="155" y="1103" width="5" height="92" rx="3" fill="#06b6d4"/>
+  <text x="171" y="1119" font-size="9.5" font-weight="700" fill="#06b6d4" letter-spacing="1.8">ARCHIVE + ANTI-FORENSICS</text>
+  <text x="966" y="1119" text-anchor="end" font-size="9.5" fill="#06b6d4" font-family="'Courier New', monospace">T1560 · T1070</text>
+  <text x="171" y="1140" font-size="16.5" font-weight="700" fill="#f8fafc">Working Directory Packed — 9.1GB</text>
+  <text x="171" y="1162" font-size="12" fill="#94a3b8">semob.df.gov.br.tar.gz · full toolkit: keys, scan results, DirtyPipe, socat, 754MB GitLab archive</text>
+  <text x="171" y="1181" font-size="12" fill="#94a3b8">Outer gzip: MTIME=0 · FNAME field stripped · OS=3 (Linux) · deliberate timestamp erasure from gzip metadata</text>
+
+  <!-- Long dashed connector 8→9 with gap label -->
+  <line x1="565" y1="1195" x2="565" y2="1268" stroke="#1e3a5f" stroke-width="2" stroke-dasharray="5,5" marker-end="url(#arr)"/>
+  <rect x="474" y="1217" width="182" height="22" rx="4" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="565" y="1232" text-anchor="middle" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">── 13-month gap ──</text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAGE 9 — STAGING  y=1271 h=102
+       ═══════════════════════════════════════════════════════ -->
+  <circle cx="140" cy="1322" r="5" fill="#8b5cf6" stroke="#0f172a" stroke-width="2"/>
+  <text x="127" y="1313" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">Apr 10</text>
+  <text x="127" y="1327" text-anchor="end" font-size="10.5" fill="#475569" font-family="'Courier New', monospace">2026</text>
+
+  <rect x="155" y="1271" width="820" height="102" rx="6" fill="#1e293b"/>
+  <rect x="155" y="1271" width="5" height="102" rx="3" fill="#8b5cf6"/>
+  <text x="171" y="1287" font-size="9.5" font-weight="700" fill="#8b5cf6" letter-spacing="1.8">STAGING + NEW OPERATIONS</text>
+  <text x="966" y="1287" text-anchor="end" font-size="9.5" fill="#8b5cf6" font-family="'Courier New', monospace">T1583 · T1608</text>
+  <text x="171" y="1308" font-size="16.5" font-weight="700" fill="#f8fafc">Archive Staged on Alibaba Cloud Singapore</text>
+  <text x="171" y="1329" font-size="12" fill="#94a3b8">47.237.75.155 · AS45102 Alibaba Cloud · no hostname · 0 detections on all active files</text>
+  <text x="171" y="1349" font-size="12" fill="#94a3b8">Alongside: gpudrive.exe (3-stage .NET dropper, Jun 2026) · tabby-1.0.234-setup-x64.exe (May 2026)</text>
+  <text x="171" y="1366" font-size="12" fill="#94a3b8">Behinder_v4.1.t00ls.zip staged Oct 2025 · 9990_072023.pdf malicious lure Feb 2026</text>
+
+  <!-- Footer -->
+  <text x="500" y="1399" text-anchor="middle" font-size="10.5" fill="#334155">threatunpacked.com · Passive analysis only: VirusTotal · Shodan · HTTP Range · streaming tar · No live C2 contact · No credentials tested</text>
+
+</svg>
