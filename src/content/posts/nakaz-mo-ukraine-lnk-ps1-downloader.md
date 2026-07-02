@@ -223,7 +223,9 @@ Get-ChildItem -Path C:\Users -Recurse -Filter "*.lnk" -ErrorAction SilentlyConti
 
 **Block at proxy / firewall:**
 ```
+193.169.194.85           # companion server, same Apache template
 193.169.194.86           # C2, Apache 2.4.52, geo-fenced PS1 host
+193.169.194.92           # same /23, google.de redirect evasion
 User-Agent: UA WindowsPowerShell   # actor fingerprint — alert on any match
 ```
 
