@@ -68,6 +68,7 @@ const links = [
   .nav-link:hover { color: var(--accent); background: var(--accent-dim); text-decoration: none; }
   .nav-link.active { color: var(--accent); }
   .nav-link.active .slash { color: var(--accent); }
+  .nav-link.active::after { content: '_'; animation: blink 1.1s steps(1) infinite; }
 
   .icon-btn {
     display: inline-grid; place-items: center; width: 34px; height: 34px;

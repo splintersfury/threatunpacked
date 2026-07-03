@@ -12,6 +12,7 @@ const { post, readingTime } = Astro.props;
 const { title, description, pubDate, updatedDate, heroImage, series, seriesPart } = post.data;
 ---
 <BaseLayout title={title} description={description} image={heroImage} article={true}>
+  <div class="read-progress" aria-hidden="true"><span id="read-bar"></span></div>
   <article class="post">
     <header class="post-head wrap">
       <p class="cmd"><span class="dollar">$</span> cat {fileName(post)}</p>
@@ -53,7 +54,29 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
   mermaid.run();
 </script>
 
+<script>
+  // Reading progress bar under the sticky header.
+  const bar = document.getElementById('read-bar');
+  if (bar) {
+    const update = () => {
+      const max = document.documentElement.scrollHeight - innerHeight;
+      bar.style.width = max > 0 ? `${(scrollY / max) * 100}%` : '0';
+    };
+    addEventListener('scroll', update, { passive: true });
+    update();
+  }
+</script>
+
 <style>
+  .read-progress {
+    position: fixed; top: 60px; left: 0; right: 0; height: 2px; z-index: 49;
+    background: transparent; pointer-events: none;
+  }
+  .read-progress span {
+    display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+    box-shadow: var(--glow-soft);
+  }
   .post-head { padding: 3rem 0 1.5rem; }
   .cmd { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); margin: 0 0 1.2rem; }
   .cmd .dollar { color: var(--accent); }

@@ -48,6 +48,14 @@ const initials = fileName.replace(/\.md$/, '').slice(0, 2).toUpperCase();
     transition: border-color .15s, transform .15s, box-shadow .15s;
   }
   .row:hover { border-color: var(--accent-line); transform: translateY(-2px); box-shadow: var(--shadow); }
+  .row::before {
+    content: '';
+    position: absolute; left: -1px; top: 10px; bottom: 10px; width: 2px;
+    background: var(--accent); border-radius: 2px;
+    transform: scaleY(0); transform-origin: top;
+    transition: transform .25s cubic-bezier(.2,.7,.2,1);
+  }
+  .row:hover::before { transform: scaleY(1); }
   .row-link { position: absolute; inset: 0; z-index: 1; }
 
   .thumb {

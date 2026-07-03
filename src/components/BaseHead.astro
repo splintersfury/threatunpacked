@@ -44,7 +44,9 @@ const ogImage = image ? new URL(image, Astro.site) : undefined;
 
 <script is:inline>
   // Terminal theme is dark by default; honor a saved preference.
+  // The `js` class gates motion-reveal styles so content stays visible without JS.
   (() => {
+    document.documentElement.classList.add('js');
     const stored = localStorage.getItem('theme');
     document.documentElement.dataset.theme = stored || 'dark';
   })();

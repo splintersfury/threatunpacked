@@ -1,5 +1,6 @@
 ---
 const year = new Date().getFullYear();
+const buildStamp = new Date().toUTCString().replace(/:\d{2} GMT$/, ' UTC');
 ---
 <footer class="site-footer">
   <div class="wrap-wide cols">
@@ -22,8 +23,14 @@ const year = new Date().getFullYear();
     </div>
   </div>
   <div class="wrap-wide bottom">
-    <span class="prompt">$</span>
-    <span>echo "© {year} threat unpacked · written by splintersfury"</span>
+    <div class="bottom-line">
+      <span class="prompt">$</span>
+      <span>echo "© {year} threat unpacked · written by splintersfury"</span>
+    </div>
+    <div class="bottom-line lastlogin">
+      <span>last deploy: {buildStamp} · uptime: forever · threat level: elevated</span>
+      <span class="blink" aria-hidden="true">▮</span>
+    </div>
   </div>
 </footer>
 
@@ -45,8 +52,11 @@ const year = new Date().getFullYear();
     margin-top: 2.5rem; padding-top: 1.4rem;
     border-top: 1px solid var(--line);
     font-family: var(--font-mono); color: var(--muted); font-size: 0.78rem;
-    display: flex; gap: 0.5rem; align-items: center;
+    display: flex; flex-direction: column; gap: 0.35rem;
   }
+  .bottom-line { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
   .bottom .prompt { color: var(--accent); }
+  .lastlogin { font-size: 0.72rem; opacity: 0.75; }
+  .blink { color: var(--accent); animation: blink 1.1s steps(1) infinite; }
   @media (max-width: 640px) { .cols { grid-template-columns: 1fr; gap: 2rem; } }
 </style>

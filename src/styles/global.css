@@ -216,11 +216,50 @@ th { font-family: var(--font-mono); font-weight: 600; font-size: 0.8rem; text-tr
 
 @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 
-/* Motion reveals — staggered boot-up on load, fade-up on scroll */
+/* Motion reveals — staggered boot-up on load, fade-up on scroll.
+   Hidden states are gated behind html.js so no-JS visitors see everything. */
 @keyframes bootIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.boot { opacity: 0; animation: bootIn 0.55s cubic-bezier(.2,.7,.2,1) forwards; }
-.reveal { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s cubic-bezier(.2,.7,.2,1); }
-.reveal.in { opacity: 1; transform: none; }
+.js .boot { opacity: 0; animation: bootIn 0.55s cubic-bezier(.2,.7,.2,1) forwards; }
+.js .reveal { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s cubic-bezier(.2,.7,.2,1); }
+.js .reveal.in { opacity: 1; transform: none; }
+
+/* Custom scrollbar — thin, terminal-flavored */
+html { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 5px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-line); }
+
+/* Prose links — animated gradient underline that grows on hover */
+.prose a {
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size .25s ease;
+  padding-bottom: 1px;
+}
+.prose a:hover { text-decoration: none; background-size: 100% 1px; }
+
+/* HUD targeting corners — apply .hud to a positioned card; corners draw in on hover */
+.hud::before, .hud::after,
+.hud > .hud-b::before, .hud > .hud-b::after {
+  content: '';
+  position: absolute;
+  width: 14px; height: 14px;
+  border: 0 solid var(--accent);
+  opacity: 0;
+  transition: opacity .2s ease, transform .25s cubic-bezier(.2,.7,.2,1);
+  pointer-events: none;
+  z-index: 3;
+}
+.hud::before        { top: 6px; left: 6px;   border-top-width: 2px; border-left-width: 2px;   transform: translate(6px, 6px); }
+.hud::after         { top: 6px; right: 6px;  border-top-width: 2px; border-right-width: 2px;  transform: translate(-6px, 6px); }
+.hud > .hud-b::before { bottom: 6px; left: 6px;  border-bottom-width: 2px; border-left-width: 2px;  transform: translate(6px, -6px); }
+.hud > .hud-b::after  { bottom: 6px; right: 6px; border-bottom-width: 2px; border-right-width: 2px; transform: translate(-6px, -6px); }
+.hud:hover::before, .hud:hover::after,
+.hud:hover > .hud-b::before, .hud:hover > .hud-b::after { opacity: 1; transform: translate(0, 0); }
+.hud-b { position: absolute; inset: 0; pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .boot, .reveal { opacity: 1 !important; transform: none !important; animation: none !important; transition: none !important; }

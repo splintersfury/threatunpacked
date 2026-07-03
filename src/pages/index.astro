@@ -14,10 +14,20 @@ const stats = [
   { num: '02', lbl: 'public CVEs' },
   { num: '04', lbl: 'open tools' },
 ];
+
+// Decorative hexdump for the hero — real bytes of the site's tagline.
+const hexSrc = 'threat_unpacked::operational_malware_analysis//less_what_more_why';
+const hexLines = Array.from({ length: 8 }, (_, row) => {
+  const bytes = hexSrc.slice(row * 8, row * 8 + 8);
+  const hex = [...bytes].map((c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
+  const addr = (row * 8).toString(16).padStart(8, '0');
+  return `${addr}  ${hex.padEnd(23)}  |${bytes}|`;
+});
 ---
 <BaseLayout title="Threat Unpacked">
   <section class="hero">
     <div class="scanlines" aria-hidden="true"></div>
+    <pre class="hexdump" aria-hidden="true">{hexLines.join('\n')}</pre>
     <div class="wrap-wide hero-inner">
       <p class="cmd boot" style="animation-delay:0ms"><span class="path">~/threat-unpacked</span> <span class="dollar">$</span> <span id="type-cmd" data-text="ls ./writing"></span><span class="type-caret" aria-hidden="true">▮</span></p>
       <p class="eyebrow boot" style="animation-delay:140ms">Operational Malware Analysis</p>
@@ -37,7 +47,7 @@ const stats = [
       <div class="status boot" style="animation-delay:620ms">
         {stats.map((s) => (
           <div class="stat">
-            <span class="num">{s.num}</span>
+            <span class="num" data-count={s.num}>{s.num}</span>
             <span class="lbl">// {s.lbl}</span>
           </div>
         ))}
@@ -51,7 +61,8 @@ const stats = [
 
   <!-- Featured latest -->
   <section class="wrap-wide feat-section">
-    <a class="featured reveal" href={postHref(featured)} aria-label={featured.data.title}>
+    <a class="featured reveal hud" href={postHref(featured)} aria-label={featured.data.title}>
+      <span class="hud-b" aria-hidden="true"></span>
       <div class="feat-media">
         {featImg
           ? <img src={featImg} alt="" />
@@ -78,7 +89,8 @@ const stats = [
   <section class="wrap-wide list-section">
     <div class="section-head">
       <span class="section-title"># archive</span>
-      <span class="count">{rest.length} more</span>
+      <span class="leader" aria-hidden="true"></span>
+      <span class="count">[{rest.length} entries]</span>
     </div>
     <div class="list">
       {rest.map((p) => (
@@ -110,6 +122,18 @@ const stats = [
   }
   .scanlines { position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
     background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0 1px, transparent 1px 3px); }
+  .hexdump {
+    position: absolute; top: 50%; right: 2.5rem; transform: translateY(-58%);
+    margin: 0; pointer-events: none; user-select: none;
+    /* undo the global terminal-window pre styling — this is a watermark */
+    background: transparent !important; border: none; padding: 0; overflow: hidden;
+    font-family: var(--font-mono); font-size: 0.72rem; line-height: 1.9;
+    color: var(--ink-soft); opacity: 0.14;
+    mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 75%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 25%, #000 75%, transparent);
+  }
+  .hexdump::before, .hexdump::after { display: none; }
+  @media (max-width: 1100px) { .hexdump { display: none; } }
   .hero-inner { position: relative; padding: clamp(3rem, 7vw, 5rem) 1.5rem clamp(1.6rem, 4vw, 2.4rem); max-width: 880px; }
   .cmd { font-family: var(--font-mono); font-size: 0.82rem; color: var(--muted); margin: 0 0 1.6rem; }
   .cmd .path { color: var(--ink-soft); }
@@ -139,6 +163,8 @@ const stats = [
     background: color-mix(in srgb, var(--code-bg) 70%, transparent);
     font-family: var(--font-mono);
   }
+  /* light theme keeps --code-bg dark for code blocks; the strip should follow the page */
+  :global([data-theme='light']) .status { background: color-mix(in srgb, var(--surface) 75%, transparent); }
   .stat { display: flex; align-items: baseline; gap: 0.5rem; }
   .stat .num { font-size: 1.4rem; font-weight: 700; color: var(--accent2); text-shadow: 0 0 10px var(--accent2-dim); }
   .stat .lbl { font-size: 0.76rem; color: var(--muted); }
@@ -162,7 +188,10 @@ const stats = [
   .feat-ph { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-mono); font-size: 4rem; color: var(--accent); opacity: .4; text-shadow: var(--glow); }
   .feat-badge {
     position: absolute; top: 0.8rem; left: 0.8rem; z-index: 2;
-    font-family: var(--font-mono); font-size: 0.7rem; color: #0a0c10; background: var(--accent);
+    font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent);
+    background: color-mix(in srgb, var(--code-bg) 82%, transparent);
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--accent-line);
     padding: 0.18rem 0.55rem; border-radius: 4px; font-weight: 600;
   }
   .feat-body { padding: 1.6rem 1.7rem; display: flex; flex-direction: column; }
@@ -181,14 +210,20 @@ const stats = [
 
   /* ── List ── */
   .list-section { padding: 2.8rem 1.5rem 1rem; max-width: 980px; }
-  .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.2rem; }
+  .section-head { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 1.2rem; }
   .section-title { font-family: var(--font-mono); font-size: 0.92rem; color: var(--ink-soft); }
+  .leader { flex: 1; border-bottom: 1px dashed var(--line-strong); transform: translateY(1px); }
   .count { font-family: var(--font-mono); font-size: 0.76rem; color: var(--muted); }
   .list { display: grid; gap: 0.9rem; }
 
   @media (max-width: 720px) {
     .featured { grid-template-columns: 1fr; }
-    .feat-media { min-height: 180px; border-right: none; border-bottom: 1px solid var(--line); }
+    .feat-media {
+      min-height: 0; aspect-ratio: 4 / 3;
+      border-right: none; border-bottom: 1px solid var(--line);
+    }
+    /* thumbnails are square art — show them whole on narrow screens */
+    .feat-media img { object-fit: contain; object-position: center; }
   }
 </style>
 
@@ -208,5 +243,22 @@ const stats = [
       };
       setTimeout(tick, 350);
     }
+  }
+
+  // Stat count-up — numbers roll from 00 to their value on load.
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.querySelectorAll('.stat .num[data-count]').forEach((num) => {
+      const target = parseInt(num.dataset.count || '0', 10);
+      const pad = (num.dataset.count || '').length;
+      const t0 = performance.now();
+      const dur = 900;
+      const step = (t) => {
+        const p = Math.min((t - t0) / dur, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        num.textContent = String(Math.round(target * eased)).padStart(pad, '0');
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
   }
 </script>
