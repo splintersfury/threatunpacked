@@ -1,10 +1,9 @@
 ---
 title: "WealthGAF and ASYNCBOTNET: A Fake Forex CRM Brand Built to Deliver a Four-Stage Python RAT"
-description: "A 2,253-byte ZIP posing as API documentation for a fake forex CRM delivers a four-stage chain: LNK trojan with conhost --headless hiding, a compiled AutoIt downloader, a PNG/ZIP polyglot Python bundle, and a previously undocumented Socket.IO RAT named ASYNCBOTNET that monitors 14 crypto wallets and 12 exchanges."
+description: "A 2,253-byte ZIP posing as API documentation for a fake forex CRM delivers a four-stage chain: LNK trojan with conhost --headless hiding, a compiled AutoIt downloader, a PNG/ZIP polyglot Python bundle, and a previously undocumented Socket.IO RAT named ASYNCBOTNET that monitors 14 crypto wallets and 12 exchanges. A single TLS certificate ties WealthGAF to a 13-brand fake forex platform cluster, all sharing the same Kubernetes C2 origin."
 pubDate: "2026-07-04T18:00:00"
 permalink: "/2026/07/04/wealthgaf-asyncbotnet-forex-rat/"
 tags: ["asyncbotnet", "wealthgaf", "autoit", "lnk-trojan", "python-rat", "socketio", "dropbox-staging", "forex-lure", "crypto-monitor", "infostealer", "threat-intel"]
-thumb: "/images/wealthgaf-asyncbotnet-forex-rat-thumb.svg"
 ---
 
 A 2,253-byte ZIP is not a CRM documentation package. That was the first thought when this sample landed via an abuse.ch submission on 2 July 2026. The file is called `WealthGAF_CRM_API_Documentation.zip` — a name that implies pages of developer reference, endpoint specifications, request schemas. Real API documentation compresses to something north of 100KB even before you add the boilerplate. Two kilobytes means there is almost nothing inside. Except there is.
@@ -102,19 +101,25 @@ Strip the three layers of base64 and you get 113,500 bytes of Python. The transp
 
 The session encryption is XOR with a time-factored key. The hardcoded password `WinUpdate2025ServiceKey` is combined with the current Unix timestamp at message send time, then the payload is zlib-compressed before XOR. Each message carries its own timestamp so the server can regenerate the correct key on the receiving end. It's not cryptographically strong — XOR with a deterministic key is breakable — but it's enough to prevent trivial HTTPS inspection from extracting plaintext commands.
 
-Persistence runs on every RAT launch, making it self-healing. The RAT copies itself to `C:\ProgramData\OneDrive\firefox.exe`, writes `OneDrive.vbs` and `OneDrive.lnk` to the Windows startup folder (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\`), and removes any stale `FirefoxUpdater.vbs` / `FirefoxUpdater.lnk` entries from an older variant of itself. That cleanup of old persistence entries is revealing: the operator has been iterating on this RAT, renamed the persistence component at some point, and is cleaning up the previous version's tracks on reinfection. A persistent UUID stored in `C:\ProgramData\OneDrive\` lets the server track individual victims across reconnections.
+Persistence runs on every RAT launch, making it self-healing. The current version (0.0.4) copies `a.exe` → `C:\ProgramData\OneDrive\firefox.exe` and `P.a3x` → `C:\ProgramData\OneDrive\plugin.a3x`, then creates `OneDrive.lnk` in the startup folder pointing to `firefox.exe plugin.a3x` with `WindowStyle=7` (minimised, no taskbar icon) and the real OneDrive.exe icon if it finds one. The LNK description string reads "Microsoft OneDrive."
+
+The uninstall routine tells you more about the operator than the malware does. The `cleanup_service` function carries a list of every persistence name this RAT has ever used: `firefox.bat`, `FirefoxUpdater.bat`, `FirefoxUpdater.vbs`, `FirefoxUpdater.ps1`, `RunFirefoxPS.bat`, `FirefoxUpdater.lnk`, and the current `OneDrive.vbs` / `OneDrive.lnk`. Scheduled tasks `FirefoxUpdaterService` and `OneDriveUpdateTask`. Registry Run keys `FirefoxUpdater`, `OneDrive_Update`, `OneDriveHelper`. The operator ships a cleanup function that knows about six generations of renamed persistence, two scheduled task names, and three registry key names — because the tool has been through all of them. Each rename was probably a reaction to detection. The `.bat` entries are the oldest layer; this thing started life as a batch file launcher and grew from there.
+
+A persistent UUID stored in `C:\ProgramData\WinUpdateCache\machine_id` lets the server track individual victims across reconnections even when multiple machines share an external IP.
 
 The Socket.IO command set covers the full spectrum of a remote access tool. The `welcome` event fires immediately on connection and sends the complete system fingerprint from `system_info.py`. After that, a 30-second heartbeat keeps the session alive. The operator can issue `execute_command` for arbitrary one-shot execution, `execute_shell_command` for an interactive shell that maintains per-session working directory state, and `take_screenshot` for screen captures via `PIL.ImageGrab`.
 
 The `admin_command` channel handles privileged operations: `shutdown` and `restart` for power control, `uninstall` for clean self-removal, `get_task_list` and `terminate_task` for process management, and the full file system suite — `get_file_list`, `download_file`, `upload_file`, `delete_file`, `zip_folder`. The `install_dependencies` and `check_dependencies` commands trigger `proper_dependency_installer.py` to load `pycryptodome` and `pywin32`, enabling browser credential extraction. After credentials are pulled, `clear_chrome_data` wipes Chrome's profile data to destroy evidence.
 
-The piece that sets ASYNCBOTNET apart from generic Python RATs is its application monitor. Every 30 seconds, the RAT scans running processes and foreground window titles against a configurable watchlist. The default list is:
+The piece that sets ASYNCBOTNET apart from generic Python RATs is its application monitor. Every 12 to 17 seconds (a randomised interval to prevent timing-based detection), the RAT scans running processes and foreground window titles against a configurable watchlist. The default list is:
 
 **Crypto wallet processes monitored**: Ledger Live, Trezor Suite, Exodus Wallet, Electrum, Trust Wallet, MetaMask App, Coinbase Wallet, Atomic Wallet, Wasabi Wallet, Sparrow Wallet, Bitcoin Core, Jaxx Liberty.
 
 **Exchange and DeFi window titles monitored**: Binance, Crypto.com, Coinbase Web, Kraken, Bybit, KuCoin, OKX, Gemini, Bitfinex, Blockchain.com, Uniswap, OpenSea, and the web interfaces for MetaMask, Ledger, Trezor, and Electrum.
 
-When a watched application becomes active, the RAT fires an `app_monitor_alert` event to the C2. A 30-minute cooldown prevents alert flooding from the same application. The operator can reconfigure the watchlist at runtime via `app_monitor_config`, which means this list is the default but can be tailored per victim. The picture it paints is clear: this is an infostealer campaign where the operator's primary objective is to be present when a victim accesses crypto assets, ready to pivot from passive monitoring into credential theft or clipboard hijacking the moment the right wallet opens.
+When a watched application becomes active, the RAT fires an `app_monitor_alert` event to the C2. Two conditions trigger an alert independently: the application just opened (always alerts immediately, regardless of cooldown) or the application has been open for 30 minutes since the last alert. The "newly opened" path is the important one — the operator gets notified the instant a victim launches any monitored wallet or navigates to an exchange, which is the moment to push a clipboard-hijacking or credential-theft command before the session closes. The operator can reconfigure the watchlist at runtime via `app_monitor_config`, so the default list can be tailored per victim. The picture it paints is clear: this is an infostealer campaign where the operator's primary objective is to be present when a victim accesses crypto assets.
+
+The version string embedded in the code is `Stealth v0.0.4 (2026-07-02)`. The `0.0.4` tells you this is not someone's repurposed GitHub project. It's being iterated, and this build was cut on the same day the delivery ZIP was packaged. Then there's the debug log: the RAT writes `%TEMP%\WinUpdateSvc_debug.log` on every run — a plaintext record of every Socket.IO event processed, every command received, every persistence action taken. The C2 URL is in there. The exact system info the RAT transmitted is in there. Timestamps on everything. Leaving debug logging hot in a production implant is a real mistake, and if an incident responder finds that file, the investigation gets a lot shorter. A full operational history of the infection sitting in `%TEMP%`, written by the malware itself.
 
 ---
 
@@ -134,6 +139,32 @@ The Credentials LNK (`WealthGAF_CRM_API_Credentials.pdf.lnk`) makes the second-s
 
 ---
 
+## The cluster behind the brand
+
+WealthGAF is one fake brand. The TLS certificate on `wealthgaf.info` reveals there are twelve more.
+
+The cert is issued for `api.wealthmvt.info` as the Common Name, but pull the Subject Alternative Names and you get 43 entries. Thirteen distinct fake forex platform brands, all sharing a single certificate:
+
+```
+assets-victory.co    blue-mg.info       cgfinance.cc
+ft-group.co          igwm.pro           platform212.co
+pswealth.cc          vtw25.com          wealthgaf.info
+wealthmvt.info       wf-assets.cc       wm-gc.com
+wm-if.com
+```
+
+Every brand gets `api.*` and `trader.*` subdomains in the cert, the same pattern as `api.wealthgaf.info` and `trader.wealthgaf.info`. The names are chosen carefully. `ft-group.co` leans on the Financial Times' initials. `platform212.co` echoes Trading 212. `wf-assets.cc` sits close enough to Wells Fargo that someone skimming an email might not look twice. None of this is accidental.
+
+The domains themselves scatter across different IPs and hosting providers, some behind Cloudflare, some direct. But the shared certificate means all thirteen were provisioned from one place. The likely candidate is the Kubernetes cluster at `151.158.1.223` that also hosts `wealthgaf.info`. That server exposes the k8s default ingress cert — `CN=Kubernetes Ingress Controller Fake Certificate, O=Acme Co`, the placeholder that Kubernetes deploys when no real cert is configured. A containerised multi-tenant setup: one cluster, thirteen brand backends, routing handled by ingress rules.
+
+Then comes the important part. `151.158.1.223` is also the origin server behind `naturevalleycloud.com` — the primary RAT C2. The fake platforms and the command-and-control infrastructure share a machine.
+
+The cluster didn't appear overnight. `ft-group.co` was registered in November 2024. `pswealth.cc`, `platform212.co`, and `assets-victory.co` followed in early 2025. The 2026 additions — `igwm.pro`, `wf-assets.cc`, `vtw25.com` — are the newest. Eighteen months of fake brand construction, at minimum. WealthGAF, registered March 2026, is near the end of that timeline. The C2 domain `naturevalleycloud.com`, registered May 2026, was probably spun up specifically for this delivery campaign rather than for the broader platform infrastructure.
+
+The overall shape of this is pig-butchering adjacent. The fake trading platforms exist to build credibility with targets and eventually extract deposits or access. The RAT delivery through the WealthGAF CRM lure is a parallel track: the operator is also getting inside the machines of forex affiliate managers and CRM developers, people who hold API keys to lead databases full of names, phone numbers, and trading profiles. Two angles on the same victim pool.
+
+---
+
 ## Infrastructure and timeline
 
 Three and a half months elapsed between brand registration and first sample. That's deliberate build-out time.
@@ -145,7 +176,11 @@ Three and a half months elapsed between brand registration and first sample. Tha
 - **2026-07-02, 06:18–06:22**: LNK files and `logo.png` finalised. Both LNKs, the outer ZIP, and the PNG/ZIP polyglot all carry creation timestamps in this four-minute window.
 - **2026-07-04**: Sample submitted to abuse.ch.
 
-The registrar choices are not accidental. Njalla for `wealthgaf.info` hides the registrant behind bulletproof privacy and accepts privacy-preserving payment methods. Namecheap for `naturevalleycloud.com` is a different registrar for the operational C2, separating the lure infrastructure from the command infrastructure. Both sit behind Cloudflare, so even if one domain is sinkholed, the operator can point DNS elsewhere and the Cloudflare-fronted traffic pattern doesn't change. The Netherlands-based backup C2 on Hostkey B.v. provides a direct fallback that bypasses Cloudflare entirely.
+The registrar choices are not accidental. Njalla for `wealthgaf.info` hides the registrant behind bulletproof privacy and accepts privacy-preserving payment methods. Namecheap for `naturevalleycloud.com` is a different registrar for the operational C2, separating the lure infrastructure from the command infrastructure. Both sit behind Cloudflare, so even if one domain is sinkholed, the operator can point DNS elsewhere and the Cloudflare-fronted traffic pattern doesn't change.
+
+The backup C2 at `31.207.47.27` (HOSTKEY B.V., Amsterdam) is worth a second look. Shodan shows RPC on 135, SMB on 445, RDP on 3389, WinRM on 5986. That's not a Linux box running a Python Socket.IO server. That's a Windows machine. Port 8447 — the ASYNCBOTNET port from `client.config` — doesn't show up in external scans at all, suggesting it's filtered or only accessible locally. This is almost certainly the **operator's own Windows VPS**: the machine they RDP into to develop payloads, stage files, and run the RAT. The `31.207.47.27:8447` entry in `client.config` is probably a dev endpoint, something that makes sense from within that machine and not from the open internet. The actual production C2 is elsewhere.
+
+That production C2 is `151.158.1.223` — the Kubernetes cluster. `naturevalleycloud.com` resolves behind Cloudflare to that same host as `wealthgaf.info`. The operator is running the fake forex platform and the RAT command infrastructure off the same box, separated only by ingress routing rules.
 
 ---
 
@@ -161,36 +196,82 @@ The AutoIt decompilation signature `AU3!EA06` identifies the `.a3x` as AutoIt 3.
 
 The persistence drops at `C:\ProgramData\OneDrive\firefox.exe` and startup VBS/LNK entries named `OneDrive.vbs` / `OneDrive.lnk` are detectable via standard persistence monitoring. The cleanup of old `FirefoxUpdater.*` entries during RAT launch means defenders hunting for older variant indicators may find their cleanup already done for them.
 
-For network detection: Socket.IO connection patterns (the initial polling handshake followed by upgrade to WebSocket over HTTPS) to a domain registered within the last 60 days should be examined. `naturevalleycloud.com` has a 31-day-old registration at time of first submission, which falls squarely inside standard new-domain alerting windows.
+For network detection: Socket.IO connection patterns (the initial polling handshake followed by upgrade to WebSocket over HTTPS) to a domain registered within the last 60 days should be examined. `naturevalleycloud.com` has a 31-day-old registration at time of first submission, which falls squarely inside standard new-domain alerting windows. The full fake platform cluster — 13 domains in the shared TLS cert — should all be blocked.
+
+Incident responders should look for `%TEMP%\WinUpdateSvc_debug.log`. If it exists, it contains a timestamped record of every C2 command the operator issued and every event the RAT processed since the last execution, including the server URL and the exact system information transmitted. This is an artefact the operator left on by accident and it significantly accelerates triage.
 
 ---
 
 ## IOCs
 
+**Hashes**
+
+| SHA256 | File | Note |
+|--------|------|------|
+| `b570834a38ff9d5e085dc48700332e536635d23e7cfb9b93fe65be1ffb85e0f7` | `WealthGAF_CRM_API_Documentation.zip` | Outer lure, 2,253 bytes |
+| `ceb5922448414f746bf7eb81d730467dbf935541c8dd4c8ae16917995538ed5c` | `WealthGAF_CRM_API_Documentation.pdf.lnk` | Stage 1 LNK |
+| `d3360060e7ceea72b77eac2cb6c08965636ed6acb841b8450269db05b8e045c2` | `WealthGAF_CRM_API_Credentials.pdf.lnk` | Stage 1 LNK |
+| `98e4f904f7de1644e519d09371b8afcbbf40ff3bd56d76ce4df48479a4ab884b` | `a_1782998350_4587.exe` | AutoIt3 interpreter, invalid PE sig, imphash `07f236b4003a1f1174171e18cad3b475` |
+| `8bee9506f5d1e89cd0845d2c5d5f15fa63ee1316c9a2027b3707ee9cdd29c63f` | `P_1782998350_4587.a3x` | Compiled AutoIt script |
+| `e4d546697cfceb764ab58e256edcdb3ee0000b89b08867d50600263d3eadf9d7` | `21npmybj.zip` | Python 3.11 + RAT bundle, 17MB |
+| `cef5c3db29b1b1dbc3e6779912ee33e2aa69823542035922714a934a514f0f40` | `WealthGAF_CRM_API_Documentation.pdf` | Decoy, 8 pages |
+
+**Network**
+
 | Type | Indicator | Note |
 |------|-----------|------|
-| SHA256 | `b570834a38ff9d5e085dc48700332e536635d23e7cfb9b93fe65be1ffb85e0f7` | `WealthGAF_CRM_API_Documentation.zip` |
-| SHA256 | `98e4f904f7de1644e519d09371b8afcbbf40ff3bd56d76ce4df48479a4ab884b` | `a_1782998350_4587.exe` — AutoIt3 interpreter, invalid PE sig |
-| SHA256 | `8bee9506f5d1e89cd0845d2c5d5f15fa63ee1316c9a2027b3707ee9cdd29c63f` | `P_1782998350_4587.a3x` — compiled AutoIt script |
-| SHA256 | `e4d546697cfceb764ab58e256edcdb3ee0000b89b08867d50600263d3eadf9d7` | `21npmybj.zip` — Python 3.11 + RAT bundle |
-| SHA256 | `cef5c3db29b1b1dbc3e6779912ee33e2aa69823542035922714a934a514f0f40` | `WealthGAF_CRM_API_Documentation.pdf` — decoy |
-| URL | `https://www.dropbox.com/scl/fi/0063nq3gemmruffc77oum/a_1782998350_4587.exe?rlkey=6h8c8anx4qqqdr284fma25fy0&dl=1` | Dropbox staging — AutoIt interpreter |
-| URL | `https://www.dropbox.com/scl/fi/dwsl2oin75cucbk3xgj27/P_1782998350_4587.a3x?rlkey=c3mm1rx1i5visse8u8wtbt0wp&dl=1` | Dropbox staging — AutoIt script |
-| URL | `https://www.dropbox.com/scl/fi/g05fy01rin9sh6kzospu6/21npmybj.zip?rlkey=8aod0ao2od2405gv7au8nrhhu&dl=1` | Dropbox staging — Python RAT bundle |
-| URL | `https://www.dropbox.com/scl/fi/qtq8fi6lbzso0qk3hdnr5/WealthGAF_CRM_API_Documentation.pdf?rlkey=0e8aukx0avwk028s7dxib1ib7&dl=1` | Dropbox staging — decoy PDF |
-| URL | `https://www.dropbox.com/scl/fi/av1dqynlgpsbj7y4h11hr/WealthGAF_CRM_API_Credentials.pdf?rlkey=bxiufllo2bgannsp48hdx8dqp&dl=1` | Dropbox staging — second decoy |
-| Domain | `naturevalleycloud.com` | Primary C2 (Cloudflare, Namecheap, registered 2026-06-03) |
-| IP | `104.21.3.183` | Cloudflare IP for `naturevalleycloud.com` |
-| IP | `172.67.131.21` | Cloudflare IP for `naturevalleycloud.com` |
-| IP | `31.207.47.27` | Backup C2, port 8447 (Hostkey B.v., NL) |
-| Domain | `wealthgaf.info` | Fake forex CRM brand site |
+| Domain | `naturevalleycloud.com` | Primary C2, Cloudflare-fronted, Namecheap, registered 2026-05-31 |
+| Domain | `wealthgaf.info` | Fake forex CRM brand, Njalla, registered 2026-03-19 |
 | Domain | `api.wealthgaf.info` | Fake API endpoint (nginx 404) |
-| IP | `151.158.1.223` | `wealthgaf.info` host (Evoxt Sdn. Bhd., AS149440, MY) |
-| Path | `C:\ProgramData\WinUpdateCache\` | RAT extraction directory |
-| Path | `C:\ProgramData\WinUpdateCache\logo.png` | PNG/ZIP polyglot — marker file and payload |
-| Path | `C:\ProgramData\py.zip` | Stage 3 bundle download path |
-| Path | `C:\ProgramData\OneDrive\firefox.exe` | Persistent RAT copy |
-| Path | `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\OneDrive.vbs` | VBS persistence |
-| Path | `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\OneDrive.lnk` | LNK persistence |
-| Key | `dtfwKu7AxQZespUVxzur9zWPChQ_PZzzPj_95jNTc4k=` | Fernet key (`encryption.key`) |
-| String | `WinUpdate2025ServiceKey` | XOR session key password (hardcoded in `__main__.py`) |
+| IP | `151.158.1.223` | Kubernetes C2 origin — hosts both `wealthgaf.info` and `naturevalleycloud.com` |
+| IP | `31.207.47.27` | Windows VPS operator machine, HOSTKEY B.V. Amsterdam (RDP/SMB/WinRM) |
+| IP | `104.21.3.183` | Cloudflare anycast — `naturevalleycloud.com` |
+| IP | `172.67.131.21` | Cloudflare anycast — `naturevalleycloud.com` |
+
+**Fake forex platform cluster (shared TLS cert)**
+
+```
+assets-victory.co  blue-mg.info  cgfinance.cc  ft-group.co
+igwm.pro  platform212.co  pswealth.cc  vtw25.com  wealthgaf.info
+wealthmvt.info  wf-assets.cc  wm-gc.com  wm-if.com
+```
+
+**Staging URLs (Dropbox — live at time of writing)**
+
+```
+https://www.dropbox.com/scl/fi/0063nq3gemmruffc77oum/a_1782998350_4587.exe?rlkey=6h8c8anx4qqqdr284fma25fy0&dl=1
+https://www.dropbox.com/scl/fi/dwsl2oin75cucbk3xgj27/P_1782998350_4587.a3x?rlkey=c3mm1rx1i5visse8u8wtbt0wp&dl=1
+https://www.dropbox.com/scl/fi/g05fy01rin9sh6kzospu6/21npmybj.zip?rlkey=8aod0ao2od2405gv7au8nrhhu&dl=1
+https://www.dropbox.com/scl/fi/qtq8fi6lbzso0qk3hdnr5/WealthGAF_CRM_API_Documentation.pdf?rlkey=0e8aukx0avwk028s7dxib1ib7&dl=1
+```
+
+**Host artefacts**
+
+| Path | Note |
+|------|------|
+| `C:\ProgramData\WinUpdateCache\` | Stage 3 extraction directory |
+| `C:\ProgramData\WinUpdateCache\logo.png` | PNG/ZIP polyglot — anti-reinfection marker |
+| `C:\ProgramData\WinUpdateCache\machine_id` | Persistent victim UUID |
+| `C:\ProgramData\py.zip` | Stage 3 bundle download path |
+| `C:\ProgramData\OneDrive\firefox.exe` | RAT persistent copy (renamed `a.exe`) |
+| `C:\ProgramData\OneDrive\plugin.a3x` | AutoIt loader persistent copy (renamed `P.a3x`) |
+| `%APPDATA%\...\Startup\OneDrive.lnk` | Current persistence (LNK, OneDrive icon) |
+| `%APPDATA%\...\Startup\OneDrive.vbs` | Legacy persistence (template present, not active in v0.0.4) |
+| `%TEMP%\WinUpdateSvc_debug.log` | Operational log — full C2 event history, commands, timestamps |
+
+**Legacy artefacts (earlier variants)**
+
+```
+Startup\FirefoxUpdater.bat, .vbs, .ps1, .lnk, RunFirefoxPS.bat
+Scheduled tasks: FirefoxUpdaterService, OneDriveUpdateTask
+Registry Run: FirefoxUpdater, OneDrive_Update, OneDriveHelper
+```
+
+**Strings**
+
+| String | Note |
+|--------|------|
+| `WinUpdate2025ServiceKey` | XOR session encryption password |
+| `dtfwKu7AxQZespUVxzur9zWPChQ_PZzzPj_95jNTc4k=` | Fernet key (`encryption.key`) |
+| `Stealth v0.0.4 (2026-07-02)` | RAT version string |
+| `WinUpdateSvc_debug.log` | Debug log filename |
