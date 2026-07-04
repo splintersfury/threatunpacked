@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#0f172a"/>
+  <!-- Cloudflare orange top stripe -->
+  <rect x="0" y="0" width="96" height="4" fill="#f38020" opacity="0.8"/>
+  <!-- Tunnel chain visual -->
+  <rect x="8" y="10" width="24" height="16" rx="2" fill="#1e293b" stroke="#f38020" stroke-width="0.7"/>
+  <text x="20" y="21" font-family="monospace" font-size="5.5" fill="#fb923c" text-anchor="middle">tunnel 1</text>
+  <line x1="32" y1="18" x2="40" y2="18" stroke="#475569" stroke-width="1"/>
+  <polygon points="42,18 39,16.5 39,19.5" fill="#475569"/>
+  <rect x="42" y="10" width="24" height="16" rx="2" fill="#1e293b" stroke="#f38020" stroke-width="0.7"/>
+  <text x="54" y="21" font-family="monospace" font-size="5.5" fill="#fb923c" text-anchor="middle">tunnel 2</text>
+  <line x1="66" y1="18" x2="74" y2="18" stroke="#475569" stroke-width="1"/>
+  <polygon points="76,18 73,16.5 73,19.5" fill="#475569"/>
+  <rect x="76" y="10" width="14" height="16" rx="2" fill="#1e293b" stroke="#94a3b8" stroke-width="0.5"/>
+  <text x="83" y="21" font-family="monospace" font-size="4.5" fill="#64748b" text-anchor="middle">victim</text>
+  <!-- Python badge -->
+  <rect x="8" y="32" width="38" height="26" rx="3" fill="#1e293b" stroke="#3b82f6" stroke-width="0.7"/>
+  <text x="27" y="43" font-family="monospace" font-size="6" fill="#93c5fd" text-anchor="middle">Python 3.12</text>
+  <text x="27" y="52" font-family="monospace" font-size="5.5" fill="#64748b" text-anchor="middle">×4 runtimes</text>
+  <!-- DLL badge -->
+  <rect x="50" y="32" width="38" height="26" rx="3" fill="#1e293b" stroke="#a855f7" stroke-width="0.7"/>
+  <text x="69" y="43" font-family="monospace" font-size="6" fill="#d8b4fe" text-anchor="middle">Early Bird</text>
+  <text x="69" y="52" font-family="monospace" font-size="5.5" fill="#64748b" text-anchor="middle">APC inject</text>
+  <!-- Ph naming -->
+  <rect x="8" y="64" width="80" height="13" rx="2" fill="#1c1917" stroke="#78716c" stroke-width="0.5"/>
+  <text x="48" y="74" font-family="monospace" font-size="6" fill="#a8a29e" text-anchor="middle">Ph prefix · Dec 2022 → Jul 2026</text>
+  <!-- AsyncRAT label -->
+  <rect x="8" y="80" width="38" height="11" rx="2" fill="#450a0a" stroke="#ef4444" stroke-width="0.5"/>
+  <text x="27" y="89" font-family="monospace" font-size="5.5" fill="#fca5a5" text-anchor="middle">AsyncRAT</text>
+  <rect x="50" y="80" width="38" height="11" rx="2" fill="#1e293b" stroke="#334155" stroke-width="0.5"/>
+  <text x="69" y="89" font-family="monospace" font-size="5.5" fill="#94a3b8" text-anchor="middle">WsgiDAV</text>
+</svg>
