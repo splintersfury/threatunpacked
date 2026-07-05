@@ -5,58 +5,65 @@ const buildStamp = new Date().toUTCString().replace(/:\d{2} GMT$/, ' UTC');
 <footer class="site-footer">
   <div class="wrap-wide cols">
     <div class="col brand-col">
-      <div class="f-brand"><span class="prompt">&gt;_</span> threat<span class="accent">_unpacked</span></div>
+      <div class="f-brand"><b>threat_unpacked</b>.i64</div>
       <p class="f-tag">Deep dives into incidents, implants, and intrusion sets. Operational malware analysis, written to matter during a response.</p>
     </div>
     <div class="col">
-      <h4>// site</h4>
+      <h4>// segments</h4>
       <a href="/">writing</a>
       <a href="/featured-investigations">investigations</a>
       <a href="/about">about</a>
       <a href="/rss.xml">rss</a>
     </div>
     <div class="col">
-      <h4>// elsewhere</h4>
+      <h4>// xrefs</h4>
       <a href="https://github.com/splintersfury" rel="me">github</a>
       <a href="https://www.linkedin.com/in/abdillahahmad/" rel="me">linkedin</a>
       <a href="https://splintersfury.github.io/KernelSight/">kernelsight</a>
     </div>
   </div>
-  <div class="wrap-wide bottom">
-    <div class="bottom-line">
-      <span class="prompt">$</span>
-      <span>echo "© {year} threat unpacked · written by splintersfury"</span>
-    </div>
-    <div class="bottom-line lastlogin">
-      <span>last deploy: {buildStamp} · uptime: forever · threat level: elevated</span>
-      <span class="blink" aria-hidden="true">▮</span>
+
+  <div class="statusbar">
+    <div class="wrap-wide sb-inner">
+      <span class="sb ok"><span class="dot" aria-hidden="true"></span>auto-analysis finished</span>
+      <span class="sep">|</span>
+      <span class="sb">&copy; {year} threat_unpacked</span>
+      <span class="right">
+        <span class="sb">written by <a href="https://github.com/splintersfury" rel="me">@splintersfury</a></span>
+        <span class="sep">|</span>
+        <span class="sb build">build {buildStamp}</span>
+      </span>
     </div>
   </div>
 </footer>
 
 <style>
-  .site-footer {
-    margin-top: 5rem;
-    background: var(--bg-soft);
-    border-top: 1px solid var(--line-strong);
-    padding: 3.2rem 0 2rem;
-  }
-  .cols { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 2.5rem; }
-  .f-brand { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; color: var(--ink); }
-  .f-brand .prompt, .f-brand .accent { color: var(--accent); }
-  .f-tag { color: var(--muted); font-size: 0.9rem; max-width: 36ch; line-height: 1.65; margin-top: 0.7rem; }
-  .col h4 { font-family: var(--font-mono); font-size: 0.74rem; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 0.8rem; font-weight: 500; }
+  .site-footer { margin-top: 5rem; background: var(--bg-soft); border-top: 1px solid var(--line-strong); }
+  .cols { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 2.5rem; padding: 3rem 1.5rem 2.4rem; }
+  .f-brand { font-family: var(--font-mono); font-size: 0.98rem; color: var(--muted); }
+  .f-brand b { color: var(--ink); font-weight: 600; }
+  .f-tag { color: var(--muted); font-size: 0.9rem; max-width: 40ch; line-height: 1.65; margin-top: 0.7rem; }
+  .col h4 { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.04em; color: var(--cmt); margin: 0 0 0.8rem; font-weight: 500; }
   .col a { display: block; font-family: var(--font-mono); color: var(--ink-soft); font-size: 0.86rem; padding: 0.22rem 0; }
   .col a:hover { color: var(--accent); text-decoration: none; }
-  .bottom {
-    margin-top: 2.5rem; padding-top: 1.4rem;
-    border-top: 1px solid var(--line);
-    font-family: var(--font-mono); color: var(--muted); font-size: 0.78rem;
-    display: flex; flex-direction: column; gap: 0.35rem;
+
+  .statusbar { border-top: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 70%, transparent); }
+  .sb-inner {
+    display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap;
+    height: auto; min-height: 34px; padding-top: 0.5rem; padding-bottom: 0.5rem;
+    font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted);
   }
-  .bottom-line { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-  .bottom .prompt { color: var(--accent); }
-  .lastlogin { font-size: 0.72rem; opacity: 0.75; }
-  .blink { color: var(--accent); animation: blink 1.1s steps(1) infinite; }
-  @media (max-width: 640px) { .cols { grid-template-columns: 1fr; gap: 2rem; } }
+  .sb.ok { color: var(--str); display: inline-flex; align-items: center; gap: 0.5rem; }
+  .dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--str); box-shadow: 0 0 0 0 var(--accent2-dim); animation: pulse 2.4s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--accent2-dim); } 70% { box-shadow: 0 0 0 6px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+  .sep { color: var(--addr); }
+  .right { margin-left: auto; display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; }
+  .sb.build { color: var(--addr); }
+  .statusbar a { color: var(--reg); }
+
+  @media (max-width: 640px) {
+    .cols { grid-template-columns: 1fr; gap: 2rem; }
+    .right { margin-left: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
 </style>

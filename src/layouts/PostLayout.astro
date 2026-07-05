@@ -15,11 +15,11 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
   <div class="read-progress" aria-hidden="true"><span id="read-bar"></span></div>
   <article class="post">
     <header class="post-head wrap">
-      <p class="cmd"><span class="dollar">$</span> cat {fileName(post)}</p>
+      <p class="cmd"><span class="addr">.text</span> <span class="dollar">;</span> disassembly of <span class="file">{fileName(post)}</span></p>
       {series && <p class="eyebrow">{series}{seriesPart ? ` — part ${seriesPart}` : ''}</p>}
       <h1>{title}</h1>
       <div class="post-meta">
-        <span class="mk"># </span><FormattedDate date={pubDate} />
+        <span class="mk">// </span><FormattedDate date={pubDate} />
         <span class="sep">·</span>
         <span>{readingTime} min read</span>
         {updatedDate && <><span class="sep">·</span><span>updated <FormattedDate date={updatedDate} /></span></>}
@@ -37,7 +37,7 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
     </div>
 
     <div class="wrap post-foot">
-      <a href="/" class="back">$ cd ..</a>
+      <a href="/" class="back">&#8592; back to listing</a>
     </div>
   </article>
 </BaseLayout>
@@ -69,7 +69,7 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
 
 <style>
   .read-progress {
-    position: fixed; top: 60px; left: 0; right: 0; height: 2px; z-index: 49;
+    position: fixed; top: 77px; left: 0; right: 0; height: 2px; z-index: 49;
     background: transparent; pointer-events: none;
   }
   .read-progress span {
@@ -79,7 +79,9 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
   }
   .post-head { padding: 3rem 0 1.5rem; }
   .cmd { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); margin: 0 0 1.2rem; }
-  .cmd .dollar { color: var(--accent); }
+  .cmd .dollar { color: var(--cmt); }
+  .cmd .addr { color: var(--addr); }
+  .cmd .file { color: var(--reg); }
   .post-head h1 { margin: 0.3rem 0 0.9rem; }
   .post-meta {
     font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted);

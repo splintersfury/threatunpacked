@@ -1,60 +1,79 @@
 /* ───────────────────────────────────────────────────────────────
-   THREAT UNPACKED — "terminal / phosphor" design system
+   THREAT UNPACKED — "disassembly / listing" design system
+   The site is laid out like a reverse-engineering IDE: address
+   gutters, cross-references, disciplined syntax color, a status bar.
    UI layer only. Never touches src/content. Tweak tokens to restyle.
    ─────────────────────────────────────────────────────────────── */
 
 :root {
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 
-  /* Dark = default (terminal) */
-  --bg: #0a0c10;
-  --bg-soft: #0e1116;
-  --surface: #12151b;
-  --ink: #cdd3dc;
-  --ink-soft: #aab2bd;
-  --muted: #69727e;
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.15);
-  --accent: #ffb000;            /* amber phosphor — primary signal */
-  --accent-soft: #ffc94d;
-  --accent-dim: rgba(255, 176, 0, 0.13);
-  --accent-line: rgba(255, 176, 0, 0.35);
-  --accent2: #4ec9a8;           /* teal-green — secondary signal */
-  --accent2-dim: rgba(78, 201, 168, 0.14);
-  --cyan: #5bc8ff;              /* tertiary, sparing use */
-  --glow: 0 0 16px rgba(255, 176, 0, 0.35);
-  --glow-soft: 0 0 8px rgba(255, 176, 0, 0.25);
-  --code-bg: #0c0f14;
-  --grid: rgba(255, 255, 255, 0.022);
-  --vignette: rgba(0, 0, 0, 0.5);
+  /* Dark = default (a modern debugger ground) */
+  --bg: #0b0e14;
+  --bg-soft: #0c1017;
+  --surface: #0f1420;           /* panels: functions list, cards */
+  --ink: #c4cfdf;
+  --ink-soft: #97a3b6;
+  --muted: #66748d;
+  --line: rgba(150, 170, 200, 0.10);
+  --line-strong: rgba(150, 170, 200, 0.17);
+  --accent: #7dcfff;            /* sky — the single interactive signal (links) */
+  --accent-soft: #a9deff;
+  --accent-dim: rgba(125, 207, 255, 0.12);
+  --accent-line: rgba(125, 207, 255, 0.34);
+  --accent2: #9ece6a;           /* green — strings / secondary signal */
+  --accent2-dim: rgba(158, 206, 106, 0.14);
+  --cyan: #7dcfff;
 
-  --maxw: 740px;
-  --maxw-wide: 1080px;
+  /* Disassembly syntax palette (subject-authentic, used with discipline) */
+  --kw: #8aa6e6;                /* mnemonic / keyword */
+  --reg: #7dcfff;              /* register / operand / link */
+  --num: #e0af68;              /* address & numeric literals */
+  --str: #9ece6a;              /* strings */
+  --cmt: #586a82;              /* comments (italic) */
+  --addr: #3a465c;             /* address gutter */
+  --title: #eaf0fa;            /* function/post titles */
+  /* Semantic severity — NOT the accent */
+  --crit: #f7768e; --high: #e0af68; --med: #7dcfff; --low: #6a7a93;
+
+  --glow: 0 0 14px rgba(125, 207, 255, 0.22);
+  --glow-soft: 0 0 7px rgba(125, 207, 255, 0.16);
+  --code-bg: #0a0d13;
+  --grid: rgba(150, 170, 210, 0.020);
+  --vignette: rgba(0, 0, 0, 0.42);
+
+  --maxw: 760px;
+  --maxw-wide: 1120px;
   --radius: 8px;
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 34px rgba(0,0,0,.45);
 }
 
 :root[data-theme='light'] {
-  --bg: #f4f3ee;
-  --bg-soft: #efeee8;
+  --bg: #f5f6f4;
+  --bg-soft: #eeefec;
   --surface: #ffffff;
-  --ink: #1a1d22;
-  --ink-soft: #3b4048;
-  --muted: #71777f;
-  --line: rgba(20, 22, 27, 0.11);
-  --line-strong: rgba(20, 22, 27, 0.2);
-  --accent: #b9540b;            /* deep amber for contrast on light */
-  --accent-soft: #9a4509;
-  --accent-dim: rgba(185, 84, 11, 0.10);
-  --accent-line: rgba(185, 84, 11, 0.3);
-  --accent2: #0f7d63;           /* teal-green, light-mode contrast */
-  --accent2-dim: rgba(15, 125, 99, 0.10);
-  --cyan: #0b6fa8;
+  --ink: #1c2430;
+  --ink-soft: #414b59;
+  --muted: #5c6675;
+  --line: rgba(20, 30, 50, 0.12);
+  --line-strong: rgba(20, 30, 50, 0.2);
+  --accent: #0e6fb8;            /* blue link for contrast on light */
+  --accent-soft: #0a5a97;
+  --accent-dim: rgba(14, 111, 184, 0.10);
+  --accent-line: rgba(14, 111, 184, 0.3);
+  --accent2: #3e7a2e;           /* green, light-mode contrast */
+  --accent2-dim: rgba(62, 122, 46, 0.10);
+  --cyan: #0e6fb8;
+
+  --kw: #3b5ba8; --reg: #0e6fb8; --num: #9a6b18; --str: #3e7a2e;
+  --cmt: #6c7a6a; --addr: #9aa3b2; --title: #0e1420;
+  --crit: #c13a57; --high: #9a6b18; --med: #0e6fb8; --low: #7a8698;
+
   --glow: none;
   --glow-soft: none;
-  --code-bg: #14171d;
-  --grid: rgba(20, 22, 27, 0.03);
+  --code-bg: #0d1017;
+  --grid: rgba(20, 30, 50, 0.028);
   --vignette: rgba(20, 22, 27, 0.05);
 }
 
@@ -105,18 +124,16 @@ h2 { font-size: clamp(1.4rem, 1.15rem + 1.1vw, 1.8rem); margin-top: 2.3em; }
 h3 { font-size: 1.22rem; margin-top: 1.8em; }
 h4 { font-size: 1.05rem; margin-top: 1.6em; }
 
-/* Markdown-style accent prefixes on prose headings (terminal flavor) */
-.prose h2::before,
-.prose h3::before {
+/* Section markers on prose headings — a faint comment token, IDE-style */
+.prose h2::before {
+  content: '//';
   font-family: var(--font-mono);
-  color: var(--accent);
-  opacity: 0.55;
+  color: var(--cmt);
   font-weight: 500;
-  margin-right: 0.5rem;
-  font-size: 0.85em;
+  margin-right: 0.55rem;
+  font-size: 0.82em;
+  font-style: italic;
 }
-.prose h2::before { content: '##'; }
-.prose h3::before { content: '###'; }
 
 a { color: var(--accent); text-decoration: none; text-underline-offset: 3px; }
 a:hover { text-decoration: underline; }
@@ -149,42 +166,38 @@ pre {
   position: relative;
   background: var(--code-bg) !important;
   color: #e6e6e6;
-  padding: 2.4rem 1.2rem 1.1rem;
+  padding: 2.15rem 1.2rem 1.1rem;
   border-radius: var(--radius);
   overflow-x: auto;
   font-size: 0.84rem;
   line-height: 1.6;
   border: 1px solid var(--line-strong);
+  border-left: 2px solid var(--accent-line);
   margin: 1.7em 0;
 }
-/* fake terminal title bar */
+/* listing-style caption bar — a hex offset, not window chrome */
 pre::before {
-  content: '';
+  content: '.text';
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 1.7rem;
-  background: rgba(255,255,255,0.04);
+  height: 1.55rem;
+  padding: 0.28rem 0.75rem;
+  font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.14em;
+  color: var(--addr);
+  background: color-mix(in srgb, var(--code-bg) 60%, #000);
   border-bottom: 1px solid var(--line);
   border-radius: var(--radius) var(--radius) 0 0;
 }
-pre::after {
-  content: '';
-  position: absolute;
-  top: 0.62rem; left: 0.85rem;
-  width: 0.5rem; height: 0.5rem; border-radius: 50%;
-  background: #ff5f56;
-  box-shadow: 0.8rem 0 0 #ffbd2e, 1.6rem 0 0 #27c93f;
-}
 pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
 .copy-btn {
-  position: absolute; top: 0.32rem; right: 0.55rem; z-index: 2;
-  font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted);
+  position: absolute; top: 0.24rem; right: 0.55rem; z-index: 2;
+  font-family: var(--font-mono); font-size: 0.66rem; color: var(--muted);
   background: rgba(255,255,255,0.06); border: 1px solid var(--line-strong);
-  border-radius: 4px; padding: 0.12rem 0.45rem; cursor: pointer;
+  border-radius: 4px; padding: 0.1rem 0.45rem; cursor: pointer;
   transition: color .15s, border-color .15s, background .15s;
 }
 .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
-.copy-btn.ok { color: #27c93f; border-color: #27c93f; }
+.copy-btn.ok { color: var(--str); border-color: var(--str); }
 
 img { max-width: 100%; height: auto; border-radius: var(--radius); display: block; }
 .prose img { margin: 1.8em auto; border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
