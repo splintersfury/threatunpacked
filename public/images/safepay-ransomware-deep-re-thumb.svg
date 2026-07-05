@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#0f172a"/>
+  <!-- Red ransomware top stripe -->
+  <rect x="0" y="0" width="96" height="3" fill="#ef4444" opacity="0.9"/>
+  <!-- DLL badge -->
+  <rect x="6" y="7" width="26" height="14" rx="2" fill="#1e293b" stroke="#ef4444" stroke-width="0.7"/>
+  <text x="19" y="17" font-family="monospace" font-size="5.5" fill="#fca5a5" text-anchor="middle">locker.dll</text>
+  <!-- Arrow -->
+  <line x1="32" y1="14" x2="40" y2="14" stroke="#475569" stroke-width="1"/>
+  <polygon points="42,14 39,12.5 39,15.5" fill="#475569"/>
+  <!-- rundll32 badge -->
+  <rect x="42" y="7" width="48" height="14" rx="2" fill="#1e293b" stroke="#94a3b8" stroke-width="0.5"/>
+  <text x="66" y="17" font-family="monospace" font-size="4.5" fill="#94a3b8" text-anchor="middle">DllInstall -pass=...</text>
+  <!-- Import resolver row -->
+  <rect x="6" y="27" width="38" height="13" rx="2" fill="#1e293b" stroke="#a855f7" stroke-width="0.6"/>
+  <text x="25" y="35" font-family="monospace" font-size="4.5" fill="#d8b4fe" text-anchor="middle">CRC-32 resolver</text>
+  <line x1="44" y1="33" x2="50" y2="33" stroke="#334155" stroke-width="0.8"/>
+  <rect x="50" y="27" width="40" height="13" rx="2" fill="#1e293b" stroke="#6366f1" stroke-width="0.6"/>
+  <text x="70" y="33.5" font-family="monospace" font-size="4" fill="#a5b4fc" text-anchor="middle">7 DLLs · 130+ APIs</text>
+  <text x="70" y="38" font-family="monospace" font-size="3.5" fill="#64748b" text-anchor="middle">poly 0x04C11DB7</text>
+  <!-- Triple-XOR row -->
+  <rect x="6" y="46" width="84" height="12" rx="2" fill="#1c1917" stroke="#78716c" stroke-width="0.5"/>
+  <text x="48" y="52.5" font-family="monospace" font-size="4" fill="#a8a29e" text-anchor="middle">triple-XOR strings: enc ^ MZ[0] ^ i ^ const</text>
+  <text x="48" y="57" font-family="monospace" font-size="3.5" fill="#57534e" text-anchor="middle">MZ = 0x4d · consts: 0x68 0xf1 0x26 0x19 0xac</text>
+  <!-- Capability row 1 -->
+  <rect x="6" y="64" width="38" height="12" rx="2" fill="#450a0a" stroke="#ef4444" stroke-width="0.5"/>
+  <text x="25" y="69.5" font-family="monospace" font-size="3.8" fill="#fca5a5" text-anchor="middle">IOCP parallel enc</text>
+  <text x="25" y="74" font-family="monospace" font-size="3.5" fill="#7f1d1d" text-anchor="middle">VSS · shadow copy</text>
+  <rect x="48" y="64" width="42" height="12" rx="2" fill="#1e293b" stroke="#8b5cf6" stroke-width="0.5"/>
+  <text x="69" y="69.5" font-family="monospace" font-size="3.8" fill="#c4b5fd" text-anchor="middle">CMSTPLUA UAC bypass</text>
+  <text x="69" y="74" font-family="monospace" font-size="3.5" fill="#4c1d95" text-anchor="middle">RtlAdjustPrivilege</text>
+  <!-- Bottom: LockBit lineage -->
+  <rect x="6" y="82" width="84" height="11" rx="2" fill="#1e293b" stroke="#334155" stroke-width="0.5"/>
+  <text x="48" y="89" font-family="monospace" font-size="4.5" fill="#64748b" text-anchor="middle">LockBit 3.0 fork · Nov 2024 · 40+ victims</text>
+</svg>
