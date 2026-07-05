@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect width="96" height="96" fill="#0f172a"/>
+  <!-- DragonForce red accent top stripe -->
+  <rect x="0" y="0" width="96" height="3" fill="#dc2626" opacity="0.9"/>
+  <!-- Compiler badge -->
+  <rect x="6" y="7" width="26" height="14" rx="2" fill="#1e293b" stroke="#f87171" stroke-width="0.7"/>
+  <text x="19" y="14.5" font-family="monospace" font-size="5" fill="#fca5a5" text-anchor="middle">MinGW C++</text>
+  <text x="19" y="19" font-family="monospace" font-size="3.5" fill="#7f1d1d" text-anchor="middle">x86 · 1.72 MB</text>
+  <!-- Arrow -->
+  <line x1="32" y1="14" x2="40" y2="14" stroke="#475569" stroke-width="1"/>
+  <polygon points="42,14 39,12.5 39,15.5" fill="#475569"/>
+  <!-- PE badge -->
+  <rect x="42" y="7" width="48" height="14" rx="2" fill="#1e293b" stroke="#94a3b8" stroke-width="0.5"/>
+  <text x="66" y="14" font-family="monospace" font-size="4" fill="#64748b" text-anchor="middle">DragonForce.exe</text>
+  <text x="66" y="19" font-family="monospace" font-size="3.5" fill="#475569" text-anchor="middle">ts: 1970-01-21 (poisoned)</text>
+  <!-- Crypto row -->
+  <rect x="6" y="27" width="38" height="13" rx="2" fill="#1e293b" stroke="#8b5cf6" stroke-width="0.6"/>
+  <text x="25" y="34" font-family="monospace" font-size="4.5" fill="#c4b5fd" text-anchor="middle">Salsa20 stream</text>
+  <text x="25" y="38.5" font-family="monospace" font-size="3.5" fill="#4c1d95" text-anchor="middle">expand 32-byte k</text>
+  <line x1="44" y1="33" x2="50" y2="33" stroke="#334155" stroke-width="0.8"/>
+  <rect x="50" y="27" width="40" height="13" rx="2" fill="#1e293b" stroke="#f59e0b" stroke-width="0.6"/>
+  <text x="70" y="34" font-family="monospace" font-size="4.5" fill="#fbbf24" text-anchor="middle">IOCP parallel enc</text>
+  <text x="70" y="38.5" font-family="monospace" font-size="3.5" fill="#78350f" text-anchor="middle">multi-mode %</text>
+  <!-- BYOVD row -->
+  <rect x="6" y="46" width="84" height="13" rx="2" fill="#2d0000" stroke="#dc2626" stroke-width="0.7"/>
+  <text x="48" y="52.5" font-family="monospace" font-size="4.5" fill="#f87171" text-anchor="middle">BYOVD: rentdrv2.sys + truesight.sys</text>
+  <text x="48" y="57" font-family="monospace" font-size="3.5" fill="#7f1d1d" text-anchor="middle">DeviceIoControl → kill EDR · use_sys configurable</text>
+  <!-- Network row -->
+  <rect x="6" y="65" width="84" height="12" rx="2" fill="#0c1a2e" stroke="#3b82f6" stroke-width="0.6"/>
+  <text x="48" y="71.5" font-family="monospace" font-size="4" fill="#60a5fa" text-anchor="middle">GetIpNetTable · NetShareEnum · ConnectEx/IOCP scan</text>
+  <text x="48" y="76" font-family="monospace" font-size="3.5" fill="#1e3a5f" text-anchor="middle">WMI shadow delete · RstrtMgr KillFileOwner</text>
+  <!-- Bottom bar -->
+  <rect x="6" y="83" width="84" height="10" rx="2" fill="#450a0a" stroke="#ef4444" stroke-width="0.5"/>
+  <text x="48" y="91" font-family="monospace" font-size="4.5" fill="#fca5a5" text-anchor="middle">M&amp;S · Co-op UK · Harrods 2025 · .df_win</text>
+</svg>
