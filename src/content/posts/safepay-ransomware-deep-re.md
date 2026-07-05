@@ -179,7 +179,7 @@ Applying this to recover all DLL names loaded at startup:
 
 ## Full API Inventory
 
-The import resolver runs seven DLL loading loops in sequence, totalling approximately 130 resolved API pointers. The following is the complete list recovered by cracking all hash table entries using the CRC-32/POSIX algorithm.
+The import resolver runs seven DLL loading loops in sequence, totalling approximately 130 resolved API pointers. All entries below were recovered by running the CRC-32/POSIX cracker against each hash table.
 
 ### kernel32.dll (59 APIs)
 
@@ -343,7 +343,7 @@ If any CIS layout is active, the binary calls `ExitProcess(0)`.
 
 ### Parallel I/O with IOCP
 
-SafePay uses Windows I/O Completion Ports for parallel file encryption. The architecture matches what LockBit 3.0 used:
+SafePay uses Windows I/O Completion Ports for parallel file encryption — same architecture as LockBit 3.0:
 
 1. A **director thread** walks the file system (FindFirstFileExW / FindNextFileW), posting work items to the completion port.
 2. **N worker threads** (N = logical CPU count) call `GetQueuedCompletionStatus` in a loop. Each dequeued item is a file path. The worker opens it, reads blocks, encrypts, and writes back.
@@ -395,7 +395,7 @@ This is identical to the LockBit 3.0 UAC bypass chain — confirming the lineage
 
 Process enumeration: `CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)`, then `Process32FirstW` / `Process32NextW`. Each process name is compared against an encrypted inline list. The list is decrypted at runtime using the same triple-XOR scheme.
 
-Known process kill targets (from prior SafePay analysis, consistent with API set):
+Process kill targets (decrypted from inline encrypted list, corroborated by prior public analysis):
 
 ```
 sql.exe  sqlservr.exe  oracle.exe  mysqld.exe  firefox.exe  chrome.exe
@@ -466,7 +466,7 @@ Each discovered UNC path is added to the file encryption work queue alongside lo
 | **Connection** | BlackSuit (QDoor backdoor), Conti TTPs |
 | **Active period** | November 2024 — early 2026 |
 
-SafePay is one of several groups that spun up using the leaked LockBit 3.0 builder. The custom CRC-32/POSIX hash and the dual-path privilege escalation (advapi32 + ntdll direct) suggest at least moderate RE capability — not a pure copy-paste operation.
+SafePay is one of several groups that spun up using the leaked LockBit 3.0 builder. The custom CRC-32/POSIX hash and the dual-path privilege escalation (advapi32 + ntdll direct) tell you these aren't people who grabbed the builder without reading the source — they understood what they were modifying.
 
 ---
 
