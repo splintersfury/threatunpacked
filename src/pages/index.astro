@@ -32,36 +32,81 @@ function classify(post: CollectionEntry<'posts'>): { label: string; sev: string 
   return { label: t ? t.replace(/\s+/g, '-') : 'writeup', sev: 'low' };
 }
 
-// Deterministic, plausible address for the listing gutter.
-const base = 0x401000;
-function addr(i: number, off = 0): string {
-  return '.text:' + (base + i * 0x680 + off).toString(16).padStart(8, '0');
+const xrefs = (post: CollectionEntry<'posts'>) =>
+  post.data.tags.slice(0, 3).map((t) => t.replace(/\s+/g, '-'));
+
+// ── SEGMENTS ─────────────────────────────────────────────────────
+// Each post belongs to one track, rendered as its own disassembler
+// segment. Assignment is derived from the post's own tags/series.
+const GROUPS = [
+  { id: 're',    seg: '.text',  label: 'reverse engineering', base: 0x00401000 },
+  { id: 'cti',   seg: '.idata', label: 'threat intelligence', base: 0x10001000 },
+  { id: 'tool',  seg: '.rdata', label: 'tooling & vuln research', base: 0x00418000 },
+  { id: 'notes', seg: '.data',  label: 'field notes', base: 0x0041f000 },
+] as const;
+type GroupId = typeof GROUPS[number]['id'];
+
+const RE_SIG = ['reverse engineering', 'malware analysis', 'byovd', 'dpapi', 'dll sideloading'];
+const CTI_SIG = ['threat intel', 'infrastructure', 'open-director', 'opendir', 'staging',
+  'kill-chain', 'lateral-movement', 'botnet', 'phishing', 'vishing', 'apt', 'spearphishing'];
+
+function groupOf(post: CollectionEntry<'posts'>): GroupId {
+  if (post.data.series) return 'tool';
+  const tags = post.data.tags.map((t) => t.toLowerCase());
+  if (tags.length === 0) return post.slug.includes('netfilter') ? 're' : 'notes';
+  const hasRE = tags.some((t) => t.includes('reverse engineering'));
+  let re = 0, cti = 0;
+  for (const t of tags) {
+    if (RE_SIG.some((s) => t.includes(s))) re++;
+    if (CTI_SIG.some((s) => t.includes(s))) cti++;
+  }
+  if (re > 0 && re >= cti && hasRE) return 're';
+  if (cti > 0) return 'cti';
+  if (hasRE) return 're';
+  return 'cti';
 }
 
-const xrefs = (post: CollectionEntry<'posts'>) =>
-  post.data.tags.slice(0, 4).map((t) => t.replace(/\s+/g, '-'));
+// Address for the listing gutter — namespaced to the post's segment.
+function addr(gid: GroupId, k: number, off = 0): string {
+  const g = GROUPS.find((x) => x.id === gid)!;
+  return `${g.seg}:` + (g.base + k * 0x680 + off).toString(16).padStart(8, '0');
+}
 
+// Group every post (for the Functions panel) and every non-featured
+// post (for the listing segments), preserving date order within each.
+const grouped = GROUPS.map((g) => ({
+  ...g,
+  all: posts.filter((p) => groupOf(p) === g.id),
+  listed: rest.filter((p) => groupOf(p) === g.id),
+})).filter((g) => g.all.length > 0);
+
+const featGid = groupOf(featured);
 const featSym = symbol(featured);
 const featCat = classify(featured);
 ---
 <BaseLayout title="Threat Unpacked">
   <div class="wrap-wide app">
 
-    <!-- Functions window -->
+    <!-- Functions window, grouped by segment -->
     <aside class="fns" aria-label="Functions">
       <h3>Functions&nbsp;<span class="fcount">[{posts.length}]</span></h3>
       <div class="filter" aria-hidden="true">filter&hellip;</div>
       <nav class="fnlist" aria-label="All writeups">
-        {posts.map((p, i) => {
-          const c = classify(p);
-          return (
-            <a class="fnrow" href={postHref(p)}>
-              <span class={`sq ${c.sev}`} aria-hidden="true"></span>
-              <span class="nm">{symbol(p)}</span>
-              <span class="sz">{readingTime(p.body)}m</span>
-            </a>
-          );
-        })}
+        {grouped.map((g) => (
+          <>
+            <p class="fngroup"><span class="fseg">{g.seg}</span> {g.label} <span class="fn-n">{g.all.length}</span></p>
+            {g.all.map((p) => {
+              const c = classify(p);
+              return (
+                <a class="fnrow" href={postHref(p)}>
+                  <span class={`sq ${c.sev}`} aria-hidden="true"></span>
+                  <span class="nm">{symbol(p)}</span>
+                  <span class="sz">{readingTime(p.body)}m</span>
+                </a>
+              );
+            })}
+          </>
+        ))}
       </nav>
     </aside>
 
@@ -69,28 +114,30 @@ const featCat = classify(featured);
     <main class="listing">
       <!-- Featured -->
       <section class="func latest">
-        <p class="preamble"><span class="hi">; [ LATEST ]</span> <span class="str">{featCat.label}</span></p>
-        <div class="ln"><span class="a">{addr(0)}</span><span class="c tl"><span class="arrow">&#8658;</span><a class="ftitle" href={postHref(featured)}>{featured.data.title}</a></span></div>
+        <p class="preamble"><span class="hi">; [ LATEST ]</span> <span class="dim">in</span> <span class="str">{GROUPS.find((x) => x.id === featGid)?.seg}</span> &middot; <span class="str">{featCat.label}</span></p>
+        <div class="ln"><span class="a">{addr(featGid, 0)}</span><span class="c tl"><span class="arrow">&#8658;</span><a class="ftitle" href={postHref(featured)}>{featured.data.title}</a></span></div>
         <div class="ln"><span class="a"></span><span class="c cmt desc2">; {featured.data.description}</span></div>
-        <div class="ln"><span class="a"></span><span class="c meta"><span class="kw">call</span> <span class="reg">read_writeup</span>&ensp;<span class="dim">; {isoDate(featured.data.pubDate)} &middot; {readingTime(featured.body)} min</span>{xrefs(featured).slice(0,3).map((t) => <span class="xr">&ensp;&#8593;<a href={postHref(featured)}>{t}</a></span>)}</span></div>
+        <div class="ln"><span class="a"></span><span class="c meta"><span class="kw">call</span> <span class="reg">read_writeup</span>&ensp;<span class="dim">; {isoDate(featured.data.pubDate)} &middot; {readingTime(featured.body)} min</span>{xrefs(featured).map((t) => <span class="xr">&ensp;&#8593;<a href={postHref(featured)}>{t}</a></span>)}</span></div>
       </section>
 
-      <p class="seg sub">; archive &middot; {rest.length} functions</p>
+      {grouped.filter((g) => g.listed.length > 0).map((g) => (
+        <section class="segment">
+          <p class="seg group"><span class="rule" aria-hidden="true"></span><span class="seg-name">SEGMENT {g.seg}</span> <span class="seg-label">{g.label}</span> <span class="seg-n">{g.listed.length} fn</span><span class="rule" aria-hidden="true"></span></p>
+          {g.listed.map((p, k) => {
+            const c = classify(p);
+            const xs = xrefs(p);
+            return (
+              <section class="func">
+                <div class="ln"><span class="a">{addr(g.id, k + 1)}</span><span class="c tl"><span class={`sq ${c.sev}`} aria-hidden="true"></span><a class="ftitle sm" href={postHref(p)}>{p.data.title}</a></span></div>
+                <div class="ln"><span class="a"></span><span class="c cmt desc1">; {p.data.description}</span></div>
+                <div class="ln"><span class="a"></span><span class="c meta"><span class="cat">{c.label}</span> <span class="dim">&middot; {isoDate(p.data.pubDate)} &middot; {readingTime(p.body)} min</span>{xs.map((t) => <span class="xr">&ensp;&#8593;<a href={postHref(p)}>{t}</a></span>)}</span></div>
+              </section>
+            );
+          })}
+        </section>
+      ))}
 
-      {rest.map((p, idx) => {
-        const i = idx + 1;
-        const c = classify(p);
-        const xs = xrefs(p).slice(0, 3);
-        return (
-          <section class="func">
-            <div class="ln"><span class="a">{addr(i)}</span><span class="c tl"><span class={`sq ${c.sev}`} aria-hidden="true"></span><a class="ftitle sm" href={postHref(p)}>{p.data.title}</a></span></div>
-            <div class="ln"><span class="a"></span><span class="c cmt desc1">; {p.data.description}</span></div>
-            <div class="ln"><span class="a"></span><span class="c meta"><span class="cat">{c.label}</span> <span class="dim">&middot; {isoDate(p.data.pubDate)} &middot; {readingTime(p.body)} min</span>{xs.map((t) => <span class="xr">&ensp;&#8593;<a href={postHref(p)}>{t}</a></span>)}</span></div>
-          </section>
-        );
-      })}
-
-      <p class="seg sub">; end of segment &middot; <a class="reg" href="/rss.xml">subscribe to the feed &#8595;</a></p>
+      <p class="seg sub">; end of listing &middot; <a class="reg" href="/rss.xml">subscribe to the feed &#8595;</a></p>
     </main>
   </div>
 </BaseLayout>
@@ -138,12 +185,31 @@ const featCat = classify(featured);
   .fnrow:hover { background: var(--accent-dim); border-left-color: var(--accent); text-decoration: none; }
   .fnrow .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fnrow .sz { color: var(--muted); font-size: 0.7rem; }
+  .fngroup {
+    display: flex; align-items: baseline; gap: 0.4rem; margin: 0;
+    padding: 0.7rem 0.9rem 0.35rem; font-size: 0.68rem; color: var(--cmt);
+    border-top: 1px solid var(--line); white-space: nowrap;
+  }
+  .fnlist > .fngroup:first-child { border-top: none; }
+  .fngroup .fseg { color: var(--num); }
+  .fngroup .fn-n { margin-left: auto; color: var(--addr); }
 
   /* Listing */
   .listing { min-width: 0; padding: 0 0 1rem 1.4rem; font-family: var(--font-mono); }
   .seg { color: var(--muted); opacity: 0.6; font-size: 0.74rem; white-space: nowrap; overflow: hidden; margin: 0 0 0.3rem; }
   .seg.sub { margin: 2.4rem 0 0.9rem; }
   .seg a { color: var(--reg); opacity: 1; }
+
+  /* segment headers between groups */
+  .segment { margin-top: 2.2rem; }
+  .seg.group {
+    display: flex; align-items: center; gap: 0.6rem; opacity: 1;
+    font-size: 0.72rem; margin: 0 0 1rem; white-space: nowrap;
+  }
+  .seg.group .rule { flex: 1; height: 1px; background: var(--line-strong); }
+  .seg.group .seg-name { color: var(--num); letter-spacing: 0.04em; }
+  .seg.group .seg-label { color: var(--str); text-transform: lowercase; }
+  .seg.group .seg-n { color: var(--addr); }
 
   .func { padding: 0.35rem 0.6rem 1rem; border-radius: 8px; }
   .func + .func { border-top: 1px solid var(--line-soft, var(--line)); padding-top: 1rem; }
