@@ -66,11 +66,20 @@ function groupOf(post: CollectionEntry<'posts'>): GroupId {
   return 'cti';
 }
 
-// Address for the listing gutter — namespaced to the post's segment.
-function addr(gid: GroupId, k: number, off = 0): string {
-  const g = GROUPS.find((x) => x.id === gid)!;
-  return `${g.seg}:` + (g.base + k * 0x680 + off).toString(16).padStart(8, '0');
-}
+// Per-segment icon (inline SVG) — a visual signal so each row's group is
+// obvious at a glance, not only from the section header above it.
+const S = 'width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"';
+const ICON: Record<GroupId, string> = {
+  // reverse engineering — a chip / silicon die
+  re: `<svg ${S}><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>`,
+  // threat intelligence — a scope / target
+  cti: `<svg ${S}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>`,
+  // tooling & vuln research — a wrench
+  tool: `<svg ${S}><path d="M14.7 6.3a4 4 0 0 0-5.3 5.3L3 18v3h3l6.4-6.4a4 4 0 0 0 5.3-5.3l-2.8 2.8-2-2 2.8-2.8z"/></svg>`,
+  // field notes — a document
+  notes: `<svg ${S}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>`,
+};
+const gclass = (id: GroupId) => `g-${id}`;
 
 // Group every post (for the Functions panel) and every non-featured
 // post (for the listing segments), preserving date order within each.
@@ -94,17 +103,16 @@ const featCat = classify(featured);
       <nav class="fnlist" aria-label="All writeups">
         {grouped.map((g) => (
           <>
-            <p class="fngroup"><span class="fseg">{g.seg}</span> {g.label} <span class="fn-n">{g.all.length}</span></p>
-            {g.all.map((p) => {
-              const c = classify(p);
-              return (
-                <a class="fnrow" href={postHref(p)}>
-                  <span class={`sq ${c.sev}`} aria-hidden="true"></span>
-                  <span class="nm">{symbol(p)}</span>
-                  <span class="sz">{readingTime(p.body)}m</span>
-                </a>
-              );
-            })}
+            <p class={`fngroup ${gclass(g.id)}`}>
+              <span class="g-ico" set:html={ICON[g.id]} aria-hidden="true" />
+              <span class="fseg">{g.seg}</span> {g.label} <span class="fn-n">{g.all.length}</span>
+            </p>
+            {g.all.map((p) => (
+              <a class="fnrow" href={postHref(p)}>
+                <span class="nm">{symbol(p)}</span>
+                <span class="sz">{readingTime(p.body)}m</span>
+              </a>
+            ))}
           </>
         ))}
       </nav>
@@ -113,16 +121,17 @@ const featCat = classify(featured);
     <!-- Listing -->
     <main class="listing">
       <!-- Featured -->
-      <section class="hero-post">
-        <p class="kicker"><span class="hi">&#9656; latest</span> <span class="in">in {GROUPS.find((x) => x.id === featGid)?.label}</span></p>
+      <section class={`hero-post ${gclass(featGid)}`}>
+        <p class="kicker"><span class="g-ico" set:html={ICON[featGid]} aria-hidden="true" /><span class="hi">latest</span> <span class="in">in {GROUPS.find((x) => x.id === featGid)?.label}</span></p>
         <a class="ftitle" href={postHref(featured)}>{featured.data.title}</a>
         <p class="desc desc2">{featured.data.description}</p>
-        <p class="meta"><span class={`sq ${featCat.sev}`} aria-hidden="true"></span><span class="cat">{featCat.label}</span> &middot; {isoDate(featured.data.pubDate)} &middot; {readingTime(featured.body)} min</p>
+        <p class="meta"><span class="cat">{featCat.label}</span> &middot; {isoDate(featured.data.pubDate)} &middot; {readingTime(featured.body)} min</p>
       </section>
 
       {grouped.filter((g) => g.listed.length > 0).map((g) => (
-        <section class="segment">
+        <section class={`segment ${gclass(g.id)}`}>
           <header class="seg-head" id={g.id}>
+            <span class="g-ico seg-ico" set:html={ICON[g.id]} aria-hidden="true" />
             <span class="seg-tag">{g.seg}</span>
             <h2 class="seg-name">{g.label}</h2>
             <span class="seg-n">{g.all.length} {g.all.length === 1 ? 'writeup' : 'writeups'}</span>
@@ -131,7 +140,7 @@ const featCat = classify(featured);
             const c = classify(p);
             return (
               <article class="row">
-                <span class={`sq ${c.sev}`} aria-hidden="true"></span>
+                <span class="g-ico row-ico" set:html={ICON[g.id]} aria-hidden="true" />
                 <div class="row-c">
                   <a class="ftitle sm" href={postHref(p)}>{p.data.title}</a>
                   <p class="desc desc1">{p.data.description}</p>
@@ -190,13 +199,21 @@ const featCat = classify(featured);
   .fnrow .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fnrow .sz { color: var(--muted); font-size: 0.7rem; }
   .fngroup {
-    display: flex; align-items: baseline; gap: 0.4rem; margin: 0;
-    padding: 0.7rem 0.9rem 0.35rem; font-size: 0.68rem; color: var(--cmt);
+    display: flex; align-items: center; gap: 0.4rem; margin: 0;
+    padding: 0.7rem 0.9rem 0.4rem; font-size: 0.68rem; color: var(--cmt);
     border-top: 1px solid var(--line); white-space: nowrap;
   }
   .fnlist > .fngroup:first-child { border-top: none; }
-  .fngroup .fseg { color: var(--num); }
+  .fngroup .fseg { color: var(--gc, var(--num)); }
   .fngroup .fn-n { margin-left: auto; color: var(--addr); }
+  .fngroup .g-ico { font-size: 0.9rem; }
+
+  /* Per-segment identity colour + icons */
+  .g-re { --gc: var(--reg); }
+  .g-cti { --gc: var(--num); }
+  .g-tool { --gc: var(--str); }
+  .g-notes { --gc: var(--muted); }
+  .g-ico { color: var(--gc, var(--accent)); display: inline-flex; align-items: center; flex: none; line-height: 0; }
 
   /* Listing */
   .listing { min-width: 0; padding: 0 0 1rem 1.6rem; }
@@ -206,8 +223,9 @@ const featCat = classify(featured);
     padding: 0.4rem 0 1.8rem; margin-bottom: 0.6rem;
     border-bottom: 1px solid var(--line);
   }
-  .kicker { font-family: var(--font-mono); font-size: 0.75rem; margin: 0 0 0.7rem; }
-  .kicker .hi { color: var(--accent); font-weight: 500; }
+  .kicker { font-family: var(--font-mono); font-size: 0.75rem; margin: 0 0 0.7rem; display: flex; align-items: center; gap: 0.4rem; }
+  .kicker .g-ico { font-size: 1rem; }
+  .kicker .hi { color: var(--gc, var(--accent)); font-weight: 500; }
   .kicker .in { color: var(--muted); }
 
   /* Titles */
@@ -241,13 +259,15 @@ const featCat = classify(featured);
   /* SEGMENT headers — the primary structure, made obvious */
   .segment { margin-top: 3rem; scroll-margin-top: 92px; }
   .seg-head {
-    display: flex; align-items: center; gap: 0.7rem;
+    display: flex; align-items: center; gap: 0.6rem;
     margin: 0 0 1.4rem; padding-bottom: 0.7rem;
-    border-bottom: 2px solid var(--accent-line);
+    border-bottom: 2px solid color-mix(in srgb, var(--gc, var(--accent)) 55%, transparent);
   }
+  .seg-ico { font-size: 1.35rem; }
   .seg-tag {
-    font-family: var(--font-mono); font-size: 0.78rem; color: var(--num);
-    background: var(--accent-dim); border: 1px solid var(--line-strong);
+    font-family: var(--font-mono); font-size: 0.78rem; color: var(--gc, var(--num));
+    background: color-mix(in srgb, var(--gc, var(--accent)) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gc, var(--accent)) 40%, transparent);
     padding: 0.1rem 0.5rem; border-radius: 5px;
   }
   .seg-name {
@@ -257,19 +277,16 @@ const featCat = classify(featured);
   }
   .seg-n { margin-left: auto; font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted); }
 
-  /* Rows */
-  .row { display: flex; gap: 0.8rem; padding: 1.1rem 0; }
+  /* Rows — each carries its segment's coloured icon + a group rail */
+  .row {
+    display: flex; gap: 0.75rem; padding: 1.05rem 0 1.05rem 1rem;
+    border-left: 2px solid color-mix(in srgb, var(--gc, var(--line)) 32%, transparent);
+    transition: border-color .15s, background .15s;
+  }
+  .row:hover { border-left-color: var(--gc, var(--accent)); background: color-mix(in srgb, var(--gc, var(--accent)) 5%, transparent); }
   .row + .row { border-top: 1px solid var(--line); }
   .row-c { min-width: 0; }
-
-  .sq {
-    display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 2px;
-    flex: none; margin-top: 0.55rem;
-  }
-  .meta .sq { margin: 0; }
-  .sq.crit { background: var(--crit); } .sq.high { background: var(--high); }
-  .sq.med { background: var(--med); } .sq.low { background: var(--low); }
-  .fnrow .sq { margin: 0; }
+  .row-ico { margin-top: 0.25rem; font-size: 1.1rem; }
 
   @media (max-width: 860px) {
     .app { grid-template-columns: 1fr; }
