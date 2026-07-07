@@ -44,12 +44,35 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
 
 <script type="module">
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
-  document.querySelectorAll('pre > code.language-mermaid').forEach((code) => {
+  const dark = document.documentElement.dataset.theme !== 'light';
+  const mono = 'JetBrains Mono Variable, ui-monospace, monospace';
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'loose',
+    theme: 'base',
+    themeVariables: dark ? {
+      fontFamily: mono, fontSize: '13px',
+      background: '#0b0e14',
+      primaryColor: '#141922', primaryBorderColor: '#7dcfff', primaryTextColor: '#e8ebf0',
+      lineColor: '#66748d', secondaryColor: '#171d27', tertiaryColor: '#0f1420',
+      clusterBkg: '#0f1420', clusterBorder: '#242c37', edgeLabelBackground: '#0b0e14',
+    } : {
+      fontFamily: mono, fontSize: '13px',
+      background: '#f5f6f4',
+      primaryColor: '#ffffff', primaryBorderColor: '#0e6fb8', primaryTextColor: '#1c2430',
+      lineColor: '#5c6675', secondaryColor: '#eef0ec', tertiaryColor: '#ffffff',
+      clusterBkg: '#eef0ec', clusterBorder: '#d4d6cf', edgeLabelBackground: '#f5f6f4',
+    },
+  });
+  // Shiki renders a ```mermaid fence as <pre data-language="mermaid"><code>...
+  // — it does NOT add a language-mermaid class to the <code> element, so
+  // match on the <pre>'s data-language instead.
+  document.querySelectorAll('pre[data-language="mermaid"]').forEach((pre) => {
+    const code = pre.querySelector('code');
     const div = document.createElement('div');
     div.className = 'mermaid not-prose';
-    div.textContent = code.textContent ?? '';
-    code.parentElement.replaceWith(div);
+    div.textContent = code?.textContent ?? '';
+    pre.replaceWith(div);
   });
   mermaid.run();
 </script>

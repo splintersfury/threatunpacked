@@ -12,6 +12,20 @@ In April 2025, Marks & Spencer — one of Britain's most recognisable retailers 
 
 I wanted to know what the encryptor actually does. Not the affiliate TTPs, not the ransom note prose — the binary. What encryption scheme, how the EDR bypass works, what the lateral movement looks like at the socket level. The sample I'm working from (`f58af71e542c67fbacf7acc53a43243a5301d115eb41e26e4d5932d8555510d0`, first seen September 2025, last submitted May 2026) is named `DragonForce.exe` by VT and carries 49 detections from major vendors, all consistent: `Ransom.DragonForce`, `Win32/Filecoder.DragonForce.B`, `Ransom:Win32/DragonForce.C!MTB`.
 
+## The Encryptor at a Glance
+
+Before the section-by-section teardown, here is the whole machine in one picture. The encryptor is six stages wired in a deliberate order: it gets privileged, blinds the defenders, destroys the victim's recovery options, hunts for more targets, encrypts, and finally makes itself persistent and visible. Everything after this is just one of these boxes in detail.
+
+```mermaid
+flowchart TD
+  A["1 · Get privileged<br/><i>steal a token → run as SYSTEM</i>"] --> B["2 · Blind the defenders<br/><i>load a vulnerable driver, kill EDR from the kernel</i>"]
+  B --> C["3 · Destroy recovery<br/><i>delete shadow copies · kill file-lock holders</i>"]
+  C --> D["4 · Find more targets<br/><i>read ARP table · enumerate SMB shares · scan ports</i>"]
+  D --> E["5 · Encrypt<br/><i>Salsa20 per file, key wrapped with the operator's RSA</i>"]
+  E --> F["6 · Persist &amp; pressure<br/><i>scheduled task · wallpaper · ransom note</i>"]
+```
+<span class="fig-cap">Fig 1 — the six stages. Order is not incidental: the driver has to kill EDR *before* the first file is written.</span>
+
 ## Binary Snapshot
 
 ```
@@ -118,6 +132,17 @@ other_encrypt_chunk_percent: %d → for large files: encrypt N% of content
 
 A small file gets fully encrypted. A medium file gets its header encrypted — enough to corrupt it but fast enough to process thousands of files quickly. Large files get a percentage of their chunks encrypted. The `20%` mode and the custom percentage mode are both logged separately, suggesting the operator can tune this at build time. Affiliates who need to process a 100TB file server in under an hour will set lower percentages; operations targeting smaller environments get full encryption by default.
 
+```mermaid
+flowchart TD
+  F["Incoming file"] --> Q{"How big?"}
+  Q -->|"below full_encrypt_threshold"| A["<b>Full encrypt</b><br/>every byte — smallest files"]
+  Q -->|"between the two thresholds"| B["<b>Header encrypt</b><br/>first header_encrypt_size bytes only"]
+  Q -->|"above header_encrypt_threshold"| C["<b>Percent encrypt</b><br/>N% of chunks across the file"]
+```
+<span class="fig-cap">Fig 2 — why the file still won't open either way. Encrypting only a header or a fraction of chunks corrupts the file's structure for a fraction of the I/O cost, so a huge share can be locked in minutes instead of hours.</span>
+
+Why does partial encryption still ruin the file? Because most formats keep their structural metadata — headers, indexes, central directories — at the very start or interleaved throughout. Scramble those bytes and the rest of the plaintext is unreachable, even though it is technically untouched. Partial modes buy speed without giving the victim a usable file.
+
 ### Windows CryptoAPI Wrapper
 
 The Salsa20 key is protected by an asymmetric scheme built on Windows CryptoAPI:
@@ -126,6 +151,24 @@ The Salsa20 key is protected by an asymmetric scheme built on Windows CryptoAPI:
 2. `CryptGenRandom` — generate the per-file Salsa20 session key
 3. `CryptImportKey` — import the operator's embedded RSA public key
 4. `CryptEncrypt` — RSA-encrypt the Salsa20 key before writing it to the file header
+
+<aside class="callout">
+<span class="lead">Concept — why hybrid encryption</span>
+Symmetric ciphers like Salsa20 are fast but use one key to both lock and unlock. If that key stayed on the victim's disk, recovery would be trivial. So ransomware pairs a fast symmetric cipher with slow asymmetric RSA: a fresh Salsa20 key encrypts the file, then RSA <b>locks the Salsa20 key itself</b> using a public key baked into the binary. The matching private key never leaves the operator. The victim ends up holding the locked file <i>and</i> the locked key — everything needed to decrypt except the one number only the attacker has.
+</aside>
+
+```mermaid
+flowchart LR
+  R["CryptGenRandom"] --> K["per-file<br/>Salsa20 key"]
+  K --> ENC["Salsa20 encrypt<br/>file contents"]
+  ENC --> CT["ciphertext"]
+  PUB["operator's RSA<br/>public key (embedded)"] --> WRAP["CryptEncrypt<br/>RSA-wrap the key"]
+  K --> WRAP
+  WRAP --> HDR["locked key blob"]
+  HDR --> OUT[".df_win file<br/>= header + ciphertext"]
+  CT --> OUT
+```
+<span class="fig-cap">Fig 3 — the per-file key is generated, used, then sealed inside the file with RSA. Only the operator's private key reopens the blob.</span>
 
 The encrypted key header is written to each file alongside the ciphertext. Without the operator's RSA private key, the Salsa20 key is unrecoverable, which is why paying for the decryptor is the only practical path for victims who haven't maintained offline backups.
 
@@ -184,7 +227,23 @@ Restart Manager was designed to let Windows Update close files gracefully before
 
 When Restart Manager's `RmShutdown` succeeds, the holding process is dead. When it fails — protected processes, kernel-held handles — DragonForce has a fallback logged as `KillFileOwner for file %s`. This function walks the process list with `CreateToolhelp32Snapshot` + `Process32NextW`, identifies the PID holding the file, and calls `TerminateProcess` directly. The driver is a third option: `[-] DeviceIoControl failed for PID: %d` shows kernel-level termination attempts when usermode fails.
 
+```mermaid
+flowchart TD
+  L["File is locked by another process"] --> RM["Restart Manager<br/>RmShutdown"]
+  RM -->|succeeds| DONE["Holder closed<br/>gracefully — proceed"]
+  RM -->|fails| KFO["KillFileOwner<br/>TerminateProcess on the PID"]
+  KFO -->|succeeds| DONE
+  KFO -->|fails — protected process| DRV["BYOVD driver<br/>kernel-level termination"]
+  DRV --> DONE
+```
+<span class="fig-cap">Fig 4 — three escalating attempts to free a locked file. Each layer only runs if the one before it failed, ending at the kernel driver described next.</span>
+
 ## BYOVD: Killing EDR from the Kernel
+
+<aside class="callout">
+<span class="lead">Concept — Bring Your Own Vulnerable Driver</span>
+EDR and antivirus run as heavily protected usermode processes. A normal program — even an administrator one — cannot open or kill them; Windows blocks it. But the <b>kernel</b> sits above all of that. Windows will load any driver that carries a valid signature, and once a driver is running in the kernel it can do essentially anything, including terminate a protected process. BYOVD abuses that trust: the attacker ships a driver that is <i>legitimately signed</i> but has a known bug — an IOCTL that lets usermode ask it to kill an arbitrary process. Load the driver, send it the EDR's PID, and the security product is killed from a layer it can't defend. The driver isn't malware; it's a loophole with a valid signature.
+</aside>
 
 Two signed but vulnerable kernel drivers are embedded by name in the binary:
 
@@ -216,6 +275,11 @@ The debug log `ERunning under: %s` tracks the integrity level — DragonForce ch
 
 ## Privilege Escalation: Token Impersonation → SYSTEM
 
+<aside class="callout">
+<span class="lead">Concept — why steal a token instead of an exploit</span>
+Every Windows process carries an access token that says who it's running as. Normally you'd need a privilege-escalation exploit (a bug) to become SYSTEM. But Windows also lets a sufficiently privileged caller <b>duplicate</b> another process's token and launch a new process with the copy — no bug required, just an API most services never expected to be called this way. `explorer.exe` is a convenient victim: it's always running, and on many machines it already carries more privilege than the malware started with. Steal its token, duplicate it, launch yourself with the copy. You're now running as whatever explorer.exe was — often enough to install a kernel service.
+</aside>
+
 The encryptor doesn't require SYSTEM to encrypt files, but it does need elevated privileges to install kernel services and manipulate protected processes. The escalation path uses token duplication:
 
 ```
@@ -226,6 +290,21 @@ GetTokenInformation(hNewToken, TokenUser, ...)
 LookupAccountSidW(NULL, pSid, szName, ...)  → confirm "NT AUTHORITY\SYSTEM" or user SID
 CreateProcessWithTokenW(hNewToken, 0, NULL, szCommandLine, 0, NULL, NULL, &si, &pi)
 ```
+
+```mermaid
+sequenceDiagram
+  participant D as DragonForce
+  participant E as explorer.exe
+  participant W as Windows
+  D->>E: OpenProcessToken (TOKEN_DUPLICATE)
+  E-->>D: token handle
+  D->>W: DuplicateTokenEx → new primary token
+  D->>W: LookupAccountSidW (whose token is this?)
+  W-->>D: "NT AUTHORITY\SYSTEM" or victim's own SID
+  D->>W: CreateProcessWithTokenW (relaunch self, new token)
+  Note over D,W: restarted process now runs<br/>with explorer.exe's privilege level
+```
+<span class="fig-cap">Fig 5 — no exploit needed: duplicate a running process's token, relaunch as that identity.</span>
 
 The debug string `Restarting as SYSTEM` confirms the binary restarts itself with the duplicated token when the current token isn't privileged enough. The WoW64 layer is aware: `IsWow64Process` + `Wow64DisableWow64FsRedirection` ensure the 32-bit process accesses `C:\Windows\System32` rather than the redirected `SysWOW64`.
 
@@ -287,7 +366,22 @@ Can't create port scan thread.
 Starting search on share %s.
 ```
 
+<aside class="callout">
+<span class="lead">Concept — why IOCP instead of one thread per connection</span>
+Scanning hundreds of hosts by opening one thread per connection and blocking on <code>connect()</code> doesn't scale — most threads just sit idle waiting for a TCP handshake to finish. I/O Completion Ports flip the model: a small, fixed pool of worker threads asks the kernel "wake me when <i>any</i> of these thousands of outstanding operations finishes," instead of one thread babysitting one socket. The same primitive that lets a web server hold ten thousand idle connections cheaply is what lets DragonForce fire off a network's worth of port probes — and later, a directory's worth of file writes — without drowning in threads.
+</aside>
+
 The binary uses `WSAIoctl(SIO_GET_EXTENSION_FUNCTION_POINTER, WSAID_CONNECTEX)` to retrieve the `ConnectEx` function pointer, then builds an IOCP-backed TCP scanner. Multiple threads post connection completion packets to a completion port; the main thread harvests results. This is the same IOCP pattern the encryption engine uses for file I/O — the same event-driven concurrency model applied to network scanning.
+
+```mermaid
+flowchart LR
+  ARP["GetIpNetTable<br/>read ARP cache"] --> HOSTS["candidate hosts<br/>(already talked to us)"]
+  HOSTS --> SHARE["NetShareEnum<br/>per host"]
+  SHARE --> DISK["STYPE_DISKTREE shares<br/>→ encryption queue"]
+  HOSTS --> SCAN["IOCP port scanner<br/>ConnectEx + completion port"]
+  SCAN --> LIVE["live hosts<br/>→ more targets"]
+```
+<span class="fig-cap">Fig 6 — target discovery needs no prior network map: the ARP table seeds it, then SMB enumeration and the port scanner expand it in parallel.</span>
 
 ## Desktop Modification
 
@@ -325,7 +419,24 @@ The victim ID embedded in this sample is `F744871F84DDF60CF744871F84DDF60C` — 
 
 ## Execution Timeline
 
-The execution order, reconstructed from the debug log sequence and import dependencies:
+The execution order, reconstructed from the debug log sequence and import dependencies. This is Fig 1 again, at full resolution:
+
+```mermaid
+flowchart TD
+  s1["1 Mutex check"] --> s2["2 Elevation check"]
+  s2 --> s3["3 Token escalation<br/>if needed"]
+  s3 --> s4["4 Driver load<br/>BYOVD"]
+  s4 --> s5["5 Process enum"]
+  s5 --> s6["6 Shadow copy delete"]
+  s6 --> s7["7 Network discovery"]
+  s7 --> s8["8 IOCP thread pool"]
+  s8 --> s9["9 Directory walk"]
+  s9 --> s10["10 Per-file encrypt"]
+  s10 --> s11["11 Wallpaper + icon"]
+  s11 --> s12["12 Note drop"]
+  s12 --> s13["13 Scheduled task"]
+```
+<span class="fig-cap">Fig 7 — thirteen steps, one pass. Nothing loops back: by the time step 10 starts, every defense the victim might rely on has already been dismantled.</span>
 
 1. **Mutex check** — `CreateMutexA("hsfjuukjzloqu28oajh727190")` prevents double-execution (bypassed with `-nomutex`)
 2. **Elevation check** — `GetTokenInformation` + `LookupAccountSidW`, logs `Process is elevated: %d`

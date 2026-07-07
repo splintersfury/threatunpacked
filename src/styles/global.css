@@ -135,6 +135,33 @@ h4 { font-size: 1.05rem; margin-top: 1.6em; }
   font-style: italic;
 }
 
+/* Concept callout — an inline "here's the idea" box for explaining a
+   technique before the disassembly. Use <aside class="callout"> in prose. */
+.prose .callout {
+  margin: 1.8em 0;
+  padding: 0.95rem 1.15rem;
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  font-size: 0.97rem;
+  line-height: 1.62;
+}
+.prose .callout > *:first-child { margin-top: 0; }
+.prose .callout > *:last-child { margin-bottom: 0; }
+.prose .callout .lead {
+  display: block; margin-bottom: 0.35rem;
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent);
+}
+/* Mermaid diagram figures — center, add a caption slot */
+.prose .mermaid { margin: 1.9em 0 1em; text-align: center; }
+.prose .mermaid svg { max-width: 100%; height: auto; }
+.prose .fig-cap {
+  display: block; text-align: center; margin: -0.3em 0 1.9em;
+  font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted);
+}
+
 a { color: var(--accent); text-decoration: none; text-underline-offset: 3px; }
 a:hover { text-decoration: underline; }
 
@@ -159,6 +186,8 @@ code {
   color: var(--accent-soft);
   padding: 0.12em 0.4em;
   border-radius: 4px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 :root[data-theme='light'] code { color: var(--accent); }
 
