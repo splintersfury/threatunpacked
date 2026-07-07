@@ -18,6 +18,20 @@ rundll32.exe locker.dll,DllInstall -pass=<32-byte-key>
 
 That `-pass=` flag is where I expected the story to begin. It ended up being a red herring.
 
+## The Encryptor at a Glance
+
+Nearly every import in this DLL is resolved by hand at runtime rather than declared in the PE header, so before the assembly-level walkthrough, here's the shape of what actually happens between `DllInstall` being called and the first file being encrypted.
+
+```mermaid
+flowchart TD
+  A["1 · Resolve own imports<br/><i>custom CRC-32 hash walk of the PEB — no import table to read</i>"] --> B["2 · Decrypt strings<br/><i>triple-XOR keyed off the running kernel32 image</i>"]
+  B --> C["3 · Anti-analysis gates<br/><i>PEB.BeingDebugged check · CIS keyboard-layout exit</i>"]
+  C --> D["4 · Escalate privilege<br/><i>CMSTPLUA COM UAC bypass — no prompt shown</i>"]
+  D --> E["5 · Destroy recovery<br/><i>kill processes/services · direct-IOCTL shadow copy delete</i>"]
+  E --> F["6 · Encrypt<br/><i>IOCP thread pool, local + network shares</i>"]
+```
+<span class="fig-cap">Fig 1 — nothing here is unique to SafePay individually; the LockBit 3.0 lineage shows in exactly this sequence, mirrored step for step.</span>
+
 ---
 
 ## The Binary
@@ -78,6 +92,11 @@ If the resolver returns zero — which it will if it cannot walk the PEB correct
 
 ## Import Resolution: Custom CRC-32, Not ror13
 
+<aside class="callout">
+<span class="lead">Concept — why resolve imports by hand at all</span>
+A PE's import table is a plaintext list: "this binary calls <code>CreateFileW</code>, <code>WriteFile</code>, ..." — exactly the list a defender or scanner reads first. Malware authors avoid that list by leaving the import table nearly empty and instead <i>finding</i> the functions themselves at runtime: walk the Process Environment Block (a structure every process has, listing its own loaded modules) to locate a DLL by name, then walk that DLL's export table to locate a function by name — without ever writing the plaintext name <code>CreateFileW</code> anywhere in the file. Comparing a <b>hash</b> of the name instead of the name itself hides the target from static string scanning too. The only "leak" is the hash constant itself, which is meaningless without the algorithm and seed used to produce it.
+</aside>
+
 Most shellcode and custom loaders use a **ror13** (rotate-right-13) hash to identify exports. SafePay does not. It uses a **CRC-32/POSIX** hash with polynomial `0x04C11DB7` — the non-reflected, big-endian form. The table is generated at runtime (not stored in the PE) by function `0x100017c0`:
 
 ```asm
@@ -128,6 +147,17 @@ Hash `0xcab3c8c9` is `hash("kernel32.dll")` in UTF-16LE — confirmed by running
 
 The **export resolver** (`0x10001240`) takes a DLL base and a target hash, walks the PE export directory, hashes each function name, and returns the matching function pointer. This is applied to 130+ API hashes stored across eight hash tables in `.data`.
 
+```mermaid
+flowchart TD
+  PEB["TEB → PEB<br/>fs:[0x30]"] --> LDR["PEB.Ldr.InMemoryOrderModuleList"]
+  LDR --> ITER["for each loaded module:<br/>hash(BaseDllName)"]
+  ITER -->|"hash == 0xcab3c8c9"| K32["found: kernel32.dll base"]
+  K32 --> EXP["walk kernel32's export directory"]
+  EXP --> ITER2["for each exported name:<br/>hash(name)"]
+  ITER2 -->|"hash == target from .data table"| FN["resolved function pointer<br/>e.g. CreateFileW"]
+```
+<span class="fig-cap">Fig 2 — the same hash-and-walk pattern runs twice: once to find a DLL by name among loaded modules, once to find a function by name inside that DLL's own export table. Neither "kernel32.dll" nor "CreateFileW" ever appears as a readable string.</span>
+
 ---
 
 ## String Obfuscation: Triple-XOR with a Structural Key
@@ -151,6 +181,15 @@ Strings are stored inline on the stack as encrypted byte sequences and decrypted
 ```
 
 The formula: `plaintext[i] = encrypted[i] ^ kernel32_base[0] ^ i ^ constant`
+
+```mermaid
+flowchart LR
+  E["encrypted byte<br/>[i]"] --> X1["XOR kernel32_base[0]<br/>always 0x4D ('M', the MZ header)"]
+  X1 --> X2["XOR i<br/>(loop counter)"]
+  X2 --> X3["XOR constant<br/>(unique per string)"]
+  X3 --> P["plaintext byte"]
+```
+<span class="fig-cap">Fig 3 — three XORs, none of which need an operator-supplied secret. The "key" is a byte that's already sitting in memory the moment kernel32 is loaded — every SafePay sample decrypts the same way regardless of build.</span>
 
 `[edx]` — the first byte at `kernel32_base` — is always `0x4D` ('M' from the MZ header). This means the "key" is structural: it comes from the runtime PE layout, not from any operator-supplied argument. The per-string `constant` varies (observed values: `0xda`, `0x68`, `0x48`, `0x95`, `0x26`, `0x19`, `0xf1`, `0xac`, `0x4b`). Different constants produce different-looking ciphertext for strings with similar content.
 
@@ -379,11 +418,29 @@ The dual-path approach means that security products hooking advapi32's `AdjustTo
 
 ### CMSTPLUA UAC bypass
 
+<aside class="callout">
+<span class="lead">Concept — a UAC bypass that isn't an exploit</span>
+UAC's prompt exists to stop a program from silently gaining admin rights. But Windows ships a handful of COM objects that are pre-registered to run <b>elevated</b> and are trusted not to need a prompt themselves — CMSTPLUA (used by the legitimate Connection Manager) is one. If a medium-integrity process instantiates that COM object and calls its exposed method to run a command, the command inherits the COM object's elevated context. No prompt appears because, as far as UAC's bookkeeping is concerned, nothing asked for elevation — an already-elevated, already-trusted component just did something on the caller's behalf. This is an auto-elevate design flaw class, not a memory-corruption bug, which is why it has survived across so many Windows versions and so many ransomware families.
+</aside>
+
 The CMSTPLUA bypass is used when the process runs at medium integrity:
 
 1. `CoInitializeEx(NULL, COINIT_APARTMENTTHREADED)`
 2. `CoCreateInstance` with CLSID `{3E5FC7F9-9A51-4367-9063-A120244FBEC7}` → `ICMLuaUtil` interface
 3. `ICMLuaUtil::ShellExec` to run a high-integrity copy of `locker.dll`
+
+```mermaid
+sequenceDiagram
+  participant M as SafePay (medium integrity)
+  participant C as CMSTPLUA COM object<br/>(auto-elevate, trusted)
+  participant O as OS
+  M->>O: CoCreateInstance(CLSID_CMSTPLUA)
+  O-->>M: ICMLuaUtil interface<br/>(already running elevated — no prompt)
+  M->>C: ICMLuaUtil::ShellExec("rundll32 locker.dll ...")
+  C->>O: launch process
+  Note over O: new process inherits<br/>CMSTPLUA's elevated integrity level
+```
+<span class="fig-cap">Fig 4 — the malware never asks Windows for elevation; it asks an already-elevated component to run something for it.</span>
 
 This is identical to the LockBit 3.0 UAC bypass chain — confirming the lineage without needing the builder.
 

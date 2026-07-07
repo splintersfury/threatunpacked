@@ -50,7 +50,24 @@ Here's the thing the first pass got wrong. The interesting file isn't `Canon.dat
 
 `GetLangID` is where the loader hides. It calls `FindFirstFileW("C:\windows\*.*")`, counts directories, and only when it hits the *third* one does it call the real loader. That's an execution gate dressed up as a localization routine. `C:\windows` always has at least three folders, so it always fires.
 
+<aside class="callout">
+<span class="lead">Concept — a gate that always opens is still a gate</span>
+This isn't a sandbox check in the usual sense (it doesn't look for a debugger or a VM artifact) — it's misdirection for a human reader. A function named <code>GetLangID</code> that counts directory entries reads, at a glance, like harmless localization bookkeeping. Nobody reversing a DLL expects "get the language ID" to be where the real payload gets triggered. The counting condition is guaranteed to pass on every real Windows install, so it costs the attacker nothing functionally — its only job is to make a human skim past the one function that matters.
+</aside>
+
 The real loader does the part that mattered for everything afterward. It calls `GetModuleFileNameW(NULL)` to get the **host EXE's** path, takes that directory, builds `\??\<dir>\Canon.dat`, opens it with `NtCreateFile`/`NtCreateSection`, and **runs it as shellcode**. There is no XOR loop anywhere in the loader.
+
+```mermaid
+flowchart TD
+  A["CNMNSST2.exe launches<br/>(signed Canon host)"] --> B["side-loads CNCLID.dll<br/>from its own directory"]
+  B --> C["export GetLangID called"]
+  C --> D{"FindFirstFileW C:\windows\*.*<br/>count dirs ≥ 3?"}
+  D -->|"always true on a real install"| E["GetModuleFileNameW(NULL)<br/>→ host EXE's own directory"]
+  E --> F["build path to Canon.dat<br/>next to the host EXE"]
+  F --> G["NtCreateFile / NtCreateSection<br/>map Canon.dat, run as shellcode"]
+  G --> H["PlugX unpacks itself in memory<br/>— never touches disk as a PE"]
+```
+<span class="fig-cap">The loader carries no key and no decision logic worth hiding — the only thing worth obscuring was that step 3 exists at all.</span>
 
 Two facts come straight out of that, and both cost me real time:
 
@@ -68,6 +85,21 @@ So a file-only extractor can't recover the C2. You need a memory image of the im
 - A reliable trigger. VNC keystroke injection and `RunOnce` both flaked on me; an **all-users Startup-folder `.bat`** was the thing that fired every time.
 - Capture from the **host side** with `virsh dump --memory-only`, so nothing in the guest has to cooperate.
 - Extract with a **binary anchor**, not a text grep. The config C2 is a struct: `flag:u16, port:u16, host`. Searching for that `[flag][port][host]` shape cuts straight through the analyst VM's pre-existing IOC noise, which a `grep https://` drowns in.
+
+```mermaid
+flowchart LR
+  subgraph Static["static file — no C2 recoverable"]
+    F["Canon.dat on disk"] -.->|"config only exists<br/>after self-map + DllMain(0x1ff)"| X["nothing to extract"]
+  end
+  subgraph Live["running implant — C2 recoverable"]
+    V["isolated VM, NIC removed"] --> T["Startup-folder .bat trigger"]
+    T --> R["implant runs, unpacks config in memory"]
+    R --> D["virsh dump --memory-only<br/>(from the host, guest doesn't need to cooperate)"]
+    D --> S["binary-anchor search:<br/>struct shape flag:u16, port:u16, host"]
+    S --> C2["202.61.72.198:443 recovered"]
+  end
+```
+<span class="fig-cap">The config exists nowhere on disk — it's assembled in memory only after the implant runs. The only way to see it is to let it run somewhere it can't phone home, then read the memory instead of the file.</span>
 
 Once that worked, the seed sample gave up `202.61.72[.]198:443` and a stream of randomly-generated beacon URIs like `https://202.61.72.198/DBe4KJbFH2U117A?QF3h=...`. The C2 matched the tweet, but now I had a repeatable way to get it out of *any* build.
 

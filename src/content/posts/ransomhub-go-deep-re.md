@@ -12,6 +12,19 @@ RansomHub emerged in February 2024 and, within a year, became the most prolific 
 
 The sample I analysed is the Windows x64 encryptor, written in Go and obfuscated with garble. I want to go through what garble actually does to a binary, how to recover the config schema despite it, how the encryption is structured, and how the built-in SMB propagation engine works — because that last part is genuinely unusual. Most ransomware calls `net use` or relies on the deployment toolchain for lateral movement. RansomHub brought its own.
 
+## The Encryptor at a Glance
+
+Strip away the Go internals and garble noise, and the binary does five things in order: decrypt its own config, agree on a key with the operator, propagate itself across the network over SMB, encrypt in parallel, and disable the services that would otherwise let a victim recover without paying.
+
+```mermaid
+flowchart TD
+  A["1 · Decrypt embedded config<br/><i>recovered despite garble via type descriptors</i>"] --> B["2 · Key exchange<br/><i>X25519 ECDH, per-victim ephemeral keypair</i>"]
+  B --> C["3 · Disrupt recovery<br/><i>disable service auto-restart · bcdedit</i>"]
+  C --> D["4 · Propagate over SMB<br/><i>own SPNEGO/NTLM client, no net use</i>"]
+  D --> E["5 · IOCP parallel encrypt<br/><i>ChaCha20, intermittent chunks</i>"]
+```
+<span class="fig-cap">Fig 1 — RansomHub carries its own network client and its own encryption engine; it doesn't lean on the deployment toolchain for either.</span>
+
 ---
 
 ## The Binary
@@ -77,6 +90,19 @@ The IOCP trio — `CreateIoCompletionPort`, `GetQueuedCompletionStatusEx`, `Post
 ## Garble: What Package Obfuscation Actually Does
 
 The THOR YARA scanner matched `SUSP_OBFUSC_Go_Garbled_Apr22_1` against this binary, confirming [garble](https://github.com/burrowers/garble) was used. Garble is a Go build wrapper that replaces all non-exported identifiers — package names, function names, type names, field names — with random strings at compile time. It works by hashing the original name with a per-build seed and substituting the hash as the new identifier.
+
+<aside class="callout">
+<span class="lead">Concept — why an obfuscated binary still leaks its structure</span>
+Garble scrambles <i>names</i>, not <i>behavior</i>. A renamed function still has the same parameters, still calls the same standard-library APIs, and — critically for Go — still carries the same runtime type metadata, because the language needs that metadata at runtime for reflection and interface dispatch. So <code>crypto/chacha20.XORKeyStream</code> becomes <code>e4VC6Y7de.XORKeyStream</code>, but it's still a method called <code>XORKeyStream</code> matching Go's standard <code>cipher.Stream</code> interface — that name can't be scrambled without breaking the program. Obfuscation raises the cost of reading a binary; it doesn't remove the load-bearing scaffolding the language itself requires to keep running.
+</aside>
+
+```mermaid
+flowchart LR
+  N["original name<br/>crypto/chacha20.XORKeyStream"] --> H["garble: hash with<br/>per-build seed"]
+  H --> R["renamed<br/>e4VC6Y7de.XORKeyStream"]
+  R -.->|"method name required<br/>by cipher.Stream interface"| SURV["XORKeyStream survives<br/>— a fixed interface contract"]
+```
+<span class="fig-cap">Fig 2 — the package prefix is randomized per build; the interface method name it must implement is not.</span>
 
 The result is that instead of reading something like:
 
@@ -168,6 +194,30 @@ The key exchange follows the standard ransomware ECDH pattern:
 4. **File key derivation**: Shared secret → per-file encryption key (likely via a KDF or direct use as ChaCha20 key).
 5. **Key recovery for decryption**: The ephemeral public key is written to disk alongside the encrypted file as `FilePublicKey`. The operator can recompute the shared secret using ECDH(master\_private, ephemeral\_public).
 
+<aside class="callout">
+<span class="lead">Concept — why ECDH needs no key transport at all</span>
+RansomHub's design is one step more elegant than an RSA key-wrap (the pattern most ransomware uses — see the DragonForce writeup). With Diffie-Hellman, two sides can arrive at the <i>same</i> shared secret without ever transmitting it: combine your own private key with the other side's public key, and you get the identical result the other side gets combining their private key with your public key. That means the malware never needs to encrypt-and-attach a session key at all — it only has to leave its <i>ephemeral public key</i> next to the file. The operator, holding the one private key that matters, recomputes the same secret later. Nothing sent over the wire (or written to disk) is ever the actual decryption key.
+</aside>
+
+```mermaid
+flowchart TD
+  subgraph Build["build time, once"]
+    MPRIV["operator's master<br/>private key (kept offline)"] --> MPUB["master public key<br/>(embedded in binary)"]
+  end
+  subgraph Runtime["per victim session"]
+    EPRIV["ephemeral private key<br/>(generated, then discarded)"] --> EPUB["ephemeral public key<br/>(written next to file)"]
+    MPUB --> ECDH1["ECDH(ephemeral_priv, master_pub)"]
+    EPRIV --> ECDH1
+    ECDH1 --> SECRET["shared secret<br/>→ ChaCha20 file key"]
+  end
+  subgraph Decrypt["after payment, on operator's panel"]
+    MPRIV --> ECDH2["ECDH(master_priv, ephemeral_pub)"]
+    EPUB --> ECDH2
+    ECDH2 --> SECRET2["identical shared secret"]
+  end
+```
+<span class="fig-cap">Fig 3 — both sides compute the same secret from different key pairs. The ephemeral private key is thrown away immediately, so even seizing the malware process's memory after encryption won't recover it.</span>
+
 The victim cannot decrypt without the operator's master private key, which the operator holds on the RansomHub panel and uses only after payment is confirmed.
 
 ### Stream Cipher: ChaCha20
@@ -221,6 +271,19 @@ Architecture:
 2. **N worker goroutines** (N tuned to logical CPU count via `GetSystemInfo`, constrained by `GetProcessAffinityMask`) call `GetQueuedCompletionStatusEx` in a loop. Each dequeued item is a file path. The worker opens it, applies the ChaCha20 cipher to the target chunks, and writes the ciphertext back.
 
 3. The timer (`CreateWaitableTimerExW`, `SetWaitableTimer`) is used for yielding when the IOCP queue is empty, rather than busy-looping.
+
+```mermaid
+flowchart LR
+  FS["filesystem walk<br/>FindFirstFileExW / FindNextFileW"] --> DIR["director goroutine"]
+  DIR -->|"PostQueuedCompletionStatus<br/>one work item per file"| IOCP[["IOCP queue"]]
+  IOCP -->|"GetQueuedCompletionStatusEx"| W1["worker 1"]
+  IOCP -->|"GetQueuedCompletionStatusEx"| W2["worker 2"]
+  IOCP -->|"GetQueuedCompletionStatusEx"| W3["worker N<br/>(N = logical CPU count)"]
+  W1 --> ENC["ChaCha20 encrypt<br/>target chunks, write back"]
+  W2 --> ENC
+  W3 --> ENC
+```
+<span class="fig-cap">Fig 4 — one thread finds files, a pool sized to the CPU count encrypts them. This is the same completion-port pattern LockBit 3.0 and Babuk use for the same reason: a thread should never sit idle waiting on disk I/O when there are more files queued.</span>
 
 Go's goroutine scheduler multiplexes goroutines over OS threads, so the actual thread count visible to Task Manager may differ from the logical CPU count — the scheduler parks goroutines that are blocked on I/O and reassigns the OS thread.
 
@@ -280,6 +343,17 @@ SYSVOL    ← domain controller share
 ```
 
 The `json:"network_shares"` config field holds an explicit list of target UNC paths, supplemented by autonomous discovery. The `-network` flag (visible in the string table alongside `verbose`, `no-note`, `skip-v`) enables or disables the SMB propagation module at invocation time.
+
+```mermaid
+flowchart TD
+  CFG["network_shares config<br/>+ ADMIN$ / SYSVOL targets"] --> SESS["SMB session setup"]
+  SESS --> NEG["SPNEGO negotiation<br/>NegTokenInit → NegTokenResp"]
+  NEG --> AUTH["NTLM auth completes<br/>using current process credentials"]
+  AUTH --> KEY["session key derived"]
+  KEY --> MOUNT["mount \\\\host\\share"]
+  MOUNT --> QUEUE["files added to<br/>the same IOCP encryption queue"]
+```
+<span class="fig-cap">Fig 5 — the malware speaks SMB itself: negotiate, authenticate, mount, then feed remote files into the identical encryption pipeline used for local disk. No `net use`, no helper process for a defender to catch.</span>
 
 With current credentials already having access to domain shares (common after the initial access broker establishes a foothold and escalates), RansomHub can encrypt network shares without spawning any external processes or relying on tools the defender might be watching.
 

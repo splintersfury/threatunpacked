@@ -14,32 +14,18 @@ Let me say up front where this lands. VirusTotal labels the loader `korplug`/Plu
 
 Here's the whole chain on one screen:
 
-```text
-RAR-SFX dropper   (e64oliw6.exe / bj84ra7b2.exe)
-       │ drops the triplet
-       ▼
-Pa.exe / PPMV.EXE   (signed OmniPage host, 0 detections)
-       │ side-loads from its own directory          [T1574.002]
-       ▼
-cpres.dll   (fake "Copy Protection" DLL; runs in DllMain, exports nothing useful)
-       │
-       │  LAYER 1: RC4 via advapi32!SystemFunction033, key "20251118!!!"
-       ▼
-paper.dat  →  decrypted shellcode   (0xCCCCCCCC guard, real entry at +4)
-       │
-       │  PEB-walk API hashing (ROR13 / UTF-16 uppercase)
-       │  load crypt32, resolve CryptUnprotectData
-       ▼
-       │  LAYER 2: DPAPI, CRYPTPROTECT_LOCAL_MACHINE
-       ▼
-  ┌──────────────────────────┴──────────────────────────┐
-  ▼                                                      ▼
-on the sealed victim host                     sandbox / analyst VM
-DPAPI key 0fcb9e6f… present                   key absent
-  │                                              │
-  ▼                                              ▼
-core decrypts → implant → C2            CryptUnprotectData fails → payload inert, FUD
+```mermaid
+flowchart TD
+  A["RAR-SFX dropper<br/>e64oliw6.exe / bj84ra7b2.exe"] -->|"drops the triplet"| B["Pa.exe / PPMV.EXE<br/>signed OmniPage host, 0 detections"]
+  B -->|"side-loads from its own directory<br/>[T1574.002]"| C["cpres.dll<br/>fake 'Copy Protection' DLL, runs in DllMain"]
+  C -->|"LAYER 1: RC4 via advapi32!SystemFunction033<br/>key: 20251118!!!"| D["paper.dat → decrypted shellcode<br/>0xCCCCCCCC guard, real entry at +4"]
+  D -->|"PEB-walk API hashing (ROR13/UTF-16 upper)<br/>resolve CryptUnprotectData"| E["LAYER 2: DPAPI<br/>CRYPTPROTECT_LOCAL_MACHINE"]
+  E --> V["on the sealed victim host<br/>DPAPI key present"]
+  E --> S["sandbox / analyst VM<br/>DPAPI key absent"]
+  V --> VOK["core decrypts → implant → C2"]
+  S --> SNO["CryptUnprotectData fails<br/>payload inert, FUD"]
 ```
+<span class="fig-cap">The fork at the bottom is the whole story: identical bytes, two different outcomes, decided entirely by which machine runs them.</span>
 
 ### The triplet
 
@@ -114,9 +100,26 @@ ciphertext       0x83360 bytes
 
 That one flag is the entire story. This is a genuine **DPAPI** blob, and it's machine-scoped.
 
+<aside class="callout">
+<span class="lead">Concept — DPAPI, and why "machine-scoped" beats any password</span>
+Windows Data Protection API exists so ordinary programs (browsers saving passwords, Wi-Fi saving PSKs) can encrypt data without writing their own crypto. Ask DPAPI to protect something, and it derives the key from a secret that's already local to the machine or the user — you never handle a key at all. Requested with <code>CRYPTPROTECT_LOCAL_MACHINE</code>, that secret is the box's own <code>DPAPI_SYSTEM</code> value: random, generated once at install, stored in the SECURITY hive, never transmitted anywhere. There is no password to guess and no key to steal remotely, because the "key" never left the machine it was born on. Anything sealed this way is, for all practical purposes, addressed to one specific computer and unreadable everywhere else.
+</aside>
+
 A `LOCAL_MACHINE` blob is encrypted with the host's `DPAPI_SYSTEM` secret. That secret is random, minted when Windows is installed, and it lives in the SECURITY registry hive. It is **not** a password. There is nothing to brute-force, no wordlist that helps, no GPU that cares. It only decrypts on the exact machine that sealed it (or offline, if you have that machine's SECURITY and SYSTEM hives). Drop `paper.dat` into any sandbox or analyst VM and `CryptUnprotectData` just returns failure. The implant, and its C2 with it, is out of reach of everybody except the intended victim.
 
 So how did the key get onto the victim? It didn't, and that's the elegant bit. Every Windows box already has a `DPAPI_SYSTEM` secret. The operator, already running on the target, called `CryptProtectData(core, LOCAL_MACHINE)` to seal the plaintext implant with the *victim's own* machine key, threw the plaintext away, and shipped the sealed result as `paper.dat`. Nobody plants a key. The victim's pre-existing OS secret does the locking for them. And because the `paper.dat` in the dropper is already sealed, the sealing happened before delivery, against one specific host. This is a pre-targeted, host-fenced payload. It explains the VirusTotal picture perfectly: the whole campaign is FUD and has never been caught beaconing, because no sandbox is ever *that* machine.
+
+```mermaid
+sequenceDiagram
+  participant Op as Operator (already on victim box)
+  participant Vic as Victim's DPAPI_SYSTEM secret<br/>(random, local, install-time)
+  participant File as paper.dat (shipped)
+  Op->>Vic: CryptProtectData(plaintext implant, LOCAL_MACHINE)
+  Vic-->>Op: sealed blob
+  Op->>File: write sealed blob, discard plaintext
+  Note over File: paper.dat now only opens<br/>via THIS box's DPAPI_SYSTEM secret
+```
+<span class="fig-cap">Fig — the operator seals the payload with a key that was already sitting on the victim's disk before the intrusion even started. Nothing new is planted; the victim's own OS does the locking.</span>
 
 It's environmental keying taken to the end of its logic. Not "look around, and bail if it smells like analysis," but "be mathematically dead everywhere except the target."
 

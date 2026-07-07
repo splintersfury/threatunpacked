@@ -32,6 +32,23 @@ March 2023 – Microsoft announced that attestation‑signed drivers can no long
 
 Takeaway: The Netfilter incident closed the ‘fast lane’ for most public drivers where attestation is now test‑only, while retail builds face stricter human and automated scrutiny.
 
+### The Rootkit at a Glance
+
+Before the instruction-level walkthrough, here's the shape of the whole thing. Two halves: a WFP registration sequence that looks completely ordinary, and a worker thread that turns that ordinary registration into a remotely-controlled traffic redirector.
+
+```mermaid
+flowchart TD
+  A["Attacker submits netfilter.sys<br/>via Microsoft attestation signing"] --> B["Automated scan finds nothing —<br/>no shellcode, uses documented APIs"]
+  B --> C["Microsoft signs it<br/>driver now trusted by DSE"]
+  C --> D["DriverEntry runs<br/>standard WDF binding + cleanup"]
+  D --> E["SetupNetworkFilter<br/>registers as a WFP callout"]
+  E --> F["FilterWorkerThread starts<br/>the actual C2 engine"]
+  F --> G["Periodic HTTP GET to<br/>hardcoded C2: 110.42.4.180:2080/u"]
+  G --> H["C2 response queued as<br/>IP/port redirection rules"]
+  H --> I["WFP callout fires on matching traffic<br/>rewrites destination IP/port in-flight"]
+```
+<span class="fig-cap">Fig 1 — nothing in the top half (signing, WFP registration) is malicious in isolation. The bottom half is what turns a legitimate-looking network filter into a remotely steerable redirector.</span>
+
 ### Dissecting Netfilter: Step‑by‑Step
 
 Name: `netfilter.sys`
@@ -166,9 +183,23 @@ Inside `SetupNetworkFilter`, the driver lays the groundwork for its network mani
             Calls `FwpmTransactionCommit0` to apply everything or roll back on error.
             
     -   **g\_ContextInitSucceeded** A global flag set true only if every step above returns success.
-        
-    
-    > **Benign use of WFP:** registering callouts and filters is exactly how firewalls and network monitors hook network I/O. **Malicious twist:** here it’s used not for protection but to invisibly redirect traffic and support C2 channels, leveraging standard OS APIs to stay under the radar.
+
+```mermaid
+sequenceDiagram
+  participant D as Netfilter.sys
+  participant WFP as WFP engine
+  D->>WFP: FwpmEngineOpen0
+  WFP-->>D: engine handle
+  D->>WFP: FwpmTransactionBegin0
+  D->>WFP: FwpmCalloutAdd0 (classifyFn = ClassifyCallback)
+  D->>WFP: FwpmSubLayerAdd0 (custom ordering layer)
+  D->>WFP: FwpmFilterAdd0 (terminating callout filter)
+  D->>WFP: FwpmTransactionCommit0
+  Note over WFP: all four registrations apply<br/>atomically, or none do
+```
+<span class="fig-cap">Fig 2 — wrapping the whole registration in one WFP transaction means the driver either fully hooks the network stack or fully doesn't; there's no half-registered state a defender could catch mid-setup.</span>
+
+> **Benign use of WFP:** registering callouts and filters is exactly how firewalls and network monitors hook network I/O. **Malicious twist:** here it’s used not for protection but to invisibly redirect traffic and support C2 channels, leveraging standard OS APIs to stay under the radar.
     
 -   **Worker Thread Creation:**
     
@@ -240,8 +271,6 @@ Once `SetupNetworkFilter` succeeds, the driver spins up `FilterWorkerThread`. Th
         -   `SendHeartbeatAndReceiveFileFromC2` then calls `ConstructC2HeartbeatUrl` to construct a GET request URL: `GLOBAL_C2_BASE_PATH + "v=" + DRIVER_VERSION_STRING + "&m=" + SYSTEM_IDENTIFIER`.
         -   `PerformHttpGetRequest_ParseResponseToHash_AndSaveToFile` executes this HTTP GET request.
         
-        ![GET\_req](/images/2_netfilter_getreq.png)
-        
         -   The response from the C2 is processed:
             -   If the HTTP status is “200” (checked by `FindSubstring_CheckHttpOkStatus` ) the body (after headers, found by `FindHttpBodyFromResponse` ) is taken.
             -   An MD5-like hash of this C2 response body is computed and stored globally (potentially as a session key or updated identifier).
@@ -266,6 +295,19 @@ Once `SetupNetworkFilter` succeeds, the driver spins up `FilterWorkerThread`. Th
     -   The packet, now redirected, is permitted to continue via `FwpsCompleteClassify0` with `actionType = FWP_ACTION_PERMIT | FWP_ACTION_FLAG_CALLOUT`.
         
     -   **This IP redirection is the primary malicious network payload observed in the code.**
+
+```mermaid
+flowchart TD
+  C2["C2 server<br/>110.42.4.180:2080"] -->|"HTTP GET response:<br/>[orig_ip-orig_port]{new_ip|new_port}"| PIP["ProcessInboundPackets"]
+  PIP --> Q["QueueC2CommandToList<br/>redirection rules held in memory"]
+  PKT["network packet arrives"] --> CB["WFP invokes<br/>WfpClassifyCallback_RedirectTraffic"]
+  CB --> LOOK["FindRedirectionRuleInQueue<br/>match on original dest IP"]
+  Q -.->|"rule available"| LOOK
+  LOOK -->|"match found"| MOD["FwpsAcquireWritableLayerDataPointer0<br/>rewrite dest IP + port in-flight"]
+  MOD --> COMMIT["FwpsApplyModifiedLayerData0"]
+  COMMIT --> PERMIT["FwpsCompleteClassify0 — PERMIT<br/>packet continues to the NEW destination"]
+```
+<span class="fig-cap">Fig 3 — the C2 never sends traffic itself; it only ships redirection rules. The rootkit's own WFP callout does the actual packet surgery, on every connection that matches, for as long as the driver is loaded.</span>
         
 -   **Stealth Advantages:**
     
