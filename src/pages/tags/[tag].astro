@@ -1,0 +1,60 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { readingTime, postHref, byDateDesc, isoDate, slugifyTag } from '../../utils';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('posts', ({ data }) => !data.draft);
+  const bySlug = new Map<string, { tag: string; posts: typeof posts }>();
+  for (const post of posts) {
+    for (const tag of post.data.tags) {
+      const slug = slugifyTag(tag);
+      if (!slug) continue;
+      const entry = bySlug.get(slug);
+      if (entry) entry.posts.push(post);
+      else bySlug.set(slug, { tag, posts: [post] });
+    }
+  }
+  return [...bySlug.entries()].map(([slug, { tag, posts }]) => ({
+    params: { tag: slug },
+    props: { tag, posts: posts.sort(byDateDesc) },
+  }));
+}
+
+const { tag, posts } = Astro.props;
+---
+<BaseLayout title={`#${tag}`} description={`Posts tagged "${tag}" on Threat Unpacked.`}>
+  <div class="wrap">
+    <header class="tag-head">
+      <p class="cmd">grep -rl <span class="q">"{tag}"</span> ./posts</p>
+      <h1>#{tag}</h1>
+      <p class="count">{posts.length} {posts.length === 1 ? 'match' : 'matches'}</p>
+    </header>
+    <div class="list">
+      {posts.map((p) => (
+        <article class="row">
+          <a class="title" href={postHref(p)}>{p.data.title}</a>
+          <p class="desc">{p.data.description}</p>
+          <p class="meta">{isoDate(p.data.pubDate)} &middot; {readingTime(p.body)} min</p>
+        </article>
+      ))}
+    </div>
+    <a href="/" class="back">&#8592; back to listing</a>
+  </div>
+</BaseLayout>
+
+<style>
+  .tag-head { padding: 3rem 0 1.5rem; border-bottom: 1px solid var(--line); }
+  .cmd { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); margin: 0 0 1rem; }
+  .cmd .q { color: var(--str); }
+  .tag-head h1 { margin: 0 0 0.4rem; font-family: var(--font-mono); }
+  .count { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); margin: 0; }
+  .list { padding: 1.5rem 0; }
+  .row { padding: 1.1rem 0; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: none; }
+  .title { display: block; font-family: var(--font-mono); font-weight: 600; font-size: 1.1rem; color: var(--title); }
+  .title:hover { color: var(--accent); text-decoration: underline; }
+  .desc { color: var(--ink-soft); font-size: 0.92rem; margin: 0.4rem 0 0; }
+  .meta { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); margin: 0.5rem 0 0; }
+  .back { display: inline-block; margin-bottom: 2rem; font-family: var(--font-mono); font-size: 0.83rem; }
+</style>

@@ -10,6 +10,8 @@ const index = posts.map((p) => ({
   file: fileName(p),
   title: p.data.title,
   href: postHref(p),
+  description: p.data.description,
+  tags: p.data.tags,
 }));
 ---
 <div id="term" class="term" role="dialog" aria-modal="true" aria-label="Command terminal" hidden>
@@ -72,6 +74,7 @@ const index = posts.map((p) => ({
         print('available commands:', 'muted');
         const rows = [
           ['ls', 'list all writing'],
+          ['find &lt;query&gt;', 'search titles, descriptions, tags'],
           ['cat &lt;file&gt;', 'open a post by filename'],
           ['open &lt;n&gt;', 'open post number n from ls'],
           ['whoami', 'about the author'],
@@ -85,6 +88,22 @@ const index = posts.map((p) => ({
       ls() {
         if (!index.length) return print('no entries.', 'muted');
         index.forEach((p, i) => {
+          print(`<span class="muted">${String(i).padStart(2, '0')}</span>  <a href="${p.href}" class="accent">${esc(p.file)}</a>  <span class="muted">${esc(p.title)}</span>`);
+        });
+      },
+      find(arg) {
+        const q = (arg || '').trim().toLowerCase();
+        if (!q) return print('usage: find &lt;query&gt; — searches title, description, tags', 'muted');
+        const hits = index
+          .map((p, i) => ({ p, i }))
+          .filter(({ p }) => (
+            p.title.toLowerCase().includes(q) ||
+            (p.description || '').toLowerCase().includes(q) ||
+            (p.tags || []).some((t) => t.toLowerCase().includes(q))
+          ));
+        if (!hits.length) return print(`find: no matches for "${esc(q)}"`, 'err');
+        print(`${hits.length} match${hits.length === 1 ? '' : 'es'} for "${esc(q)}":`, 'muted');
+        hits.forEach(({ p, i }) => {
           print(`<span class="muted">${String(i).padStart(2, '0')}</span>  <a href="${p.href}" class="accent">${esc(p.file)}</a>  <span class="muted">${esc(p.title)}</span>`);
         });
       },

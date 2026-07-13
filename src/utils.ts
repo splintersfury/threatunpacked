@@ -30,6 +30,11 @@ export function thumbFor(post: CollectionEntry<'posts'>): string | undefined {
   return m ? m[1] : undefined;
 }
 
+// URL-safe tag slug, e.g. "Open-Director" -> "open-director".
+export function slugifyTag(tag: string): string {
+  return tag.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 // YYYY-MM-DD for mono metadata rows. Uses local date parts so it doesn't
 // shift a day across timezones (the way toISOString() would).
 export function isoDate(d: Date): string {

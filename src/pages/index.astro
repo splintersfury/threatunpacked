@@ -1,7 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { readingTime, postHref, byDateDesc, isoDate } from '../utils';
+import { readingTime, postHref, byDateDesc, isoDate, slugifyTag } from '../utils';
 import type { CollectionEntry } from 'astro:content';
 
 const posts = (await getCollection('posts', ({ data }) => !data.draft)).sort(byDateDesc);
@@ -99,16 +99,16 @@ const featCat = classify(featured);
     <!-- Functions window, grouped by segment -->
     <aside class="fns" aria-label="Functions">
       <h3>Functions&nbsp;<span class="fcount">[{posts.length}]</span></h3>
-      <div class="filter" aria-hidden="true">filter&hellip;</div>
-      <nav class="fnlist" aria-label="All writeups">
+      <input class="filter" id="fn-filter" type="text" placeholder="filter&hellip;" aria-label="Filter writeups by title or tag" autocomplete="off" />
+      <nav class="fnlist" id="fn-list" aria-label="All writeups">
         {grouped.map((g) => (
           <>
-            <p class={`fngroup ${gclass(g.id)}`}>
+            <p class={`fngroup ${gclass(g.id)}`} data-fngroup={g.id}>
               <span class="g-ico" set:html={ICON[g.id]} aria-hidden="true" />
               <span class="fseg">{g.seg}</span> {g.label} <span class="fn-n">{g.all.length}</span>
             </p>
             {g.all.map((p) => (
-              <a class="fnrow" href={postHref(p)}>
+              <a class="fnrow" href={postHref(p)} data-search={(p.data.title + ' ' + p.data.tags.join(' ')).toLowerCase()}>
                 <span class="nm">{symbol(p)}</span>
                 <span class="sz">{readingTime(p.body)}m</span>
               </a>
@@ -116,6 +116,7 @@ const featCat = classify(featured);
           </>
         ))}
       </nav>
+      <p class="fn-empty" id="fn-empty" hidden>no matches</p>
     </aside>
 
     <!-- Listing -->
@@ -126,6 +127,9 @@ const featCat = classify(featured);
         <a class="ftitle" href={postHref(featured)}>{featured.data.title}</a>
         <p class="desc desc2">{featured.data.description}</p>
         <p class="meta"><span class="cat">{featCat.label}</span> &middot; {isoDate(featured.data.pubDate)} &middot; {readingTime(featured.body)} min</p>
+        {xrefs(featured).length > 0 && (
+          <p class="tags">{xrefs(featured).map((t) => <a class="tag-link" href={`/tags/${slugifyTag(t)}/`}>#{t}</a>)}</p>
+        )}
       </section>
 
       {grouped.filter((g) => g.listed.length > 0).map((g) => (
@@ -145,6 +149,9 @@ const featCat = classify(featured);
                   <a class="ftitle sm" href={postHref(p)}>{p.data.title}</a>
                   <p class="desc desc1">{p.data.description}</p>
                   <p class="meta"><span class="cat">{c.label}</span> &middot; {isoDate(p.data.pubDate)} &middot; {readingTime(p.body)} min</p>
+                  {xrefs(p).length > 0 && (
+                    <p class="tags">{xrefs(p).map((t) => <a class="tag-link" href={`/tags/${slugifyTag(t)}/`}>#{t}</a>)}</p>
+                  )}
                 </div>
               </article>
             );
@@ -154,6 +161,46 @@ const featCat = classify(featured);
     </main>
   </div>
 </BaseLayout>
+
+<script>
+  // Live client-side filter over the Functions sidebar — matches post
+  // title and tags, hides empty segment groups.
+  (() => {
+    const input = document.getElementById('fn-filter');
+    const list = document.getElementById('fn-list');
+    const empty = document.getElementById('fn-empty');
+    if (!input || !list || !empty) return;
+
+    const rows = Array.from(list.querySelectorAll('.fnrow'));
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim().toLowerCase();
+      let visible = 0;
+      rows.forEach((row) => {
+        const hay = row.getAttribute('data-search') || '';
+        const match = !q || hay.includes(q);
+        row.hidden = !match;
+        if (match) visible++;
+      });
+      // Hide a group header when none of its rows (the ones following it
+      // up to the next header) are visible.
+      let current = null;
+      let currentHasVisible = false;
+      const nodes = Array.from(list.children);
+      nodes.forEach((node, i) => {
+        if (node.classList.contains('fngroup')) {
+          if (current) current.hidden = !currentHasVisible;
+          current = node;
+          currentHasVisible = false;
+        } else if (node.classList.contains('fnrow') && !node.hidden) {
+          currentHasVisible = true;
+        }
+      });
+      if (current) current.hidden = !currentHasVisible;
+      empty.hidden = visible !== 0;
+    });
+  })();
+</script>
 
 <style>
   .app {
@@ -183,12 +230,19 @@ const featCat = classify(featured);
   }
   .fns h3 .fcount { color: var(--faint, var(--muted)); }
   .filter {
+    display: block; width: calc(100% - 1.4rem);
     margin: 0.6rem 0.7rem; padding: 0.35rem 0.55rem;
-    font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted);
+    font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink);
     background: var(--bg); border: 1px solid var(--line); border-radius: 5px;
+    outline: none;
   }
-  .filter::before { content: '\2315\00a0'; color: var(--muted); }
+  .filter::placeholder { color: var(--muted); }
+  .filter:focus { border-color: var(--accent-line); }
   .fnlist { overflow-y: auto; padding-bottom: 0.4rem; }
+  .fn-empty {
+    margin: 0; padding: 0.5rem 0.9rem 0.8rem;
+    font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted);
+  }
   .fnrow {
     display: grid; grid-template-columns: auto 1fr auto; align-items: center;
     gap: 0.4rem; padding: 0.32rem 0.9rem;
@@ -255,6 +309,12 @@ const featCat = classify(featured);
     margin: 0.6rem 0 0; display: flex; align-items: center; gap: 0.35rem;
   }
   .meta .cat { color: var(--str); }
+  .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0 0; }
+  .tag-link {
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent2);
+    background: var(--accent2-dim); padding: 0.08rem 0.45rem; border-radius: 4px;
+  }
+  .tag-link:hover { text-decoration: underline; }
 
   /* SEGMENT headers — the primary structure, made obvious */
   .segment { margin-top: 3rem; scroll-margin-top: 92px; }

@@ -1,7 +1,7 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import FormattedDate from '../components/FormattedDate.astro';
-import { fileName } from '../utils';
+import { fileName, slugifyTag } from '../utils';
 import type { CollectionEntry } from 'astro:content';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
   readingTime: number;
 }
 const { post, readingTime } = Astro.props;
-const { title, description, pubDate, updatedDate, heroImage, series, seriesPart } = post.data;
+const { title, description, pubDate, updatedDate, heroImage, series, seriesPart, tags } = post.data;
 ---
 <BaseLayout title={title} description={description} image={heroImage} article={true}>
   <div class="read-progress" aria-hidden="true"><span id="read-bar"></span></div>
@@ -24,6 +24,11 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
         <span>{readingTime} min read</span>
         {updatedDate && <><span class="sep">·</span><span>updated <FormattedDate date={updatedDate} /></span></>}
       </div>
+      {tags.length > 0 && (
+        <div class="post-tags">
+          {tags.map((t) => <a href={`/tags/${slugifyTag(t)}/`} class="tag-link">#{t}</a>)}
+        </div>
+      )}
     </header>
 
     {heroImage && (
@@ -112,6 +117,12 @@ const { title, description, pubDate, updatedDate, heroImage, series, seriesPart 
   }
   .post-meta .mk { color: var(--accent); opacity: 0.6; }
   .post-meta .sep { opacity: 0.5; }
+  .post-tags { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.9rem; }
+  .tag-link {
+    font-family: var(--font-mono); font-size: 0.74rem; color: var(--accent2);
+    background: var(--accent2-dim); padding: 0.12rem 0.5rem; border-radius: 4px;
+  }
+  .tag-link:hover { text-decoration: underline; }
   .hero-figure { margin: 1.2rem auto 2.5rem; }
   .hero-figure img { width: 100%; max-height: 440px; object-fit: cover; border: 1px solid var(--line-strong); box-shadow: var(--shadow); }
   .prose { font-size: 1.05rem; }
