@@ -1,6 +1,6 @@
 ---
 title: "Pitboss Never Sleeps: Reverse Engineering the NetScaler Log-to-Root Chain (CVE-2026-88771 / CVE-2026-88772)"
-description: "Full teardown of the September 2026 NetScaler ADC/Gateway zero-day campaign: the ns_monuploadd_err.pl log-poisoning root cause analyzed line by line from firmware, the watchTowr DTLS heap-overflow PoC dissected down to its setcontext/ROP chain, and the complete payload landscape grounded in 18 campaign samples pulled via VirusTotal Intelligence: the dual-mode webshell installers, update_c08937.pl with its plaintext passwords, the nsmon.pl cron bind shell no vendor named, Platypus enrollment certificates that date the C2 infrastructure to September 2, and a post-disclosure WHIPSHOT/SLAPSHOT copycat kit. With detection and eradication guidance."
+description: "Full teardown of the September 2026 NetScaler ADC/Gateway zero-day campaign: the ns_monuploadd_err.pl log-poisoning root cause analyzed line by line from firmware, the watchTowr DTLS heap-overflow PoC dissected down to its setcontext/ROP chain, and the complete payload landscape grounded in first-hand analysis of 18 in-the-wild campaign samples: the dual-mode webshell installers, update_c08937.pl with its plaintext passwords, the nsmon.pl cron bind shell no vendor named, Platypus enrollment certificates that date the C2 infrastructure to September 2, and a post-disclosure WHIPSHOT/SLAPSHOT copycat kit. With detection and eradication guidance."
 pubDate: "2026-10-03T18:00:00"
 permalink: "/2026/10/03/netscaler-pitboss-log-to-root/"
 tags: ["Threat Intelligence", "Reverse Engineering", "NetScaler", "Webshells", "Incident Response"]
@@ -11,7 +11,7 @@ On September 26, 2026, watchTowr publicly stated that reports of a new NetScaler
 
 I wanted to understand this one at the level I usually reserve for ransomware binaries: not the bulletins, the actual code. What does it mean for a log line to become a root shell? Why did the same SUID shell keep showing up in the wild and inside the public PoC? And what is actually living on these appliances once the initial access is forgotten?
 
-This post is a full teardown of both zero-days and everything that followed them. The sources are public: vendor research, the public PoCs, and the vulnerable script itself, which a researcher carved out of three NetScaler firmware builds (including the patched one) so the rest of us can read the diff. And, courtesy of a VirusTotal Intelligence subscription, the actual payloads: 18 samples from the GTI IOC collection and the vendor-published hashes, downloaded over the API and verified against their published sha256 values before analysis. Where the first reporting wave had to paraphrase these files, this teardown quotes them. Everything was worked through offline; nothing was executed. The artifact manifest and full IOC set are in the appendices.
+This post is a full teardown of both zero-days and everything that followed them. The sources are public: vendor research, the public PoCs, and the vulnerable script itself, which a researcher carved out of three NetScaler firmware builds (including the patched one) so the rest of us can read the diff. And the actual payloads: 18 samples matching the GTI IOC collection and the vendor-published hashes, each one verified against its published sha256 value before analysis. Where the first reporting wave had to paraphrase these files, this teardown quotes them. Everything was worked through offline; nothing was executed. The artifact manifest and full IOC set are in the appendices.
 
 ## The Campaign in One Picture
 
@@ -257,7 +257,7 @@ Points 2 through 4 matter for triage philosophy: even a "benign" PoC run against
 
 ## The Payload Landscape
 
-Initial access is the least interesting part of this campaign. What follows is a full stack of appliance-native persistence, and it deserves its own reverse engineering treatment. While the campaign was breaking, most of these samples sat behind login walls; the VirusTotal Intelligence pull changes that. Eighteen files are now on disk, hash-verified, and the analysis below quotes the payloads themselves. Two remain unretrievable (Unit 42's `nsg64.deb` and the GTI WHIPSHOT/SLAPSHOT pair; VT holds the hashes but not the files), and where that matters I lean on the published YARA and protocol descriptions instead.
+Initial access is the least interesting part of this campaign. What follows is a full stack of appliance-native persistence, and it deserves its own reverse engineering treatment. Most of these samples sat behind login walls while the campaign was breaking. Eighteen of them are now on my disk, each verified against its published sha256 value, and the analysis below quotes the payloads themselves. Two families never surfaced as samples at all (Unit 42's `nsg64.deb` and the GTI WHIPSHOT/SLAPSHOT pair; the hashes are published, the files are not), and where that matters I lean on the published YARA and protocol descriptions instead.
 
 ### .ctxs.receiver: 237 Bytes of Cookie-Gated Shell
 
@@ -327,7 +327,7 @@ The e6ee7c85.sig shell takes commands from the `HTTP_NSC_CLIENTTYPE` header (bas
 
 The DTLS-chain webshell Unit 42 analyzed (`nsg64.deb`, sha256 `ae22ef2517b5c0fb47f78745b9cb5260acee0e751b89bcd354640ff8bc8d29ec`) is a more developed tool than the cookie shells: PHP with an RC4-encrypted C2 channel. The RC4 key is `7489a0f93c67fa5cdaeb4b921d90594d`, which is the MD5 of the ASCII passphrase `Rhfajaf1H992`. That is a recoverable-at-scale indicator: any copy of the shell yields the same key material, and the passphrase itself may correlate with other operator artifacts if it surfaces elsewhere. Commands are pulled from HTTP headers, cookies, or GET/POST parameters (`HTTP_xxx` server variables): `cmd`, `size` (via `wc -c`), `dl` (chunked, 1 MB cap), `up`, and `info` (returns `php=<ver>\nns=4`). Privilege escalation uses the legitimate SUID binary `/var/netscaler/.ns_suidcmd`.
 
-Unit 42's `nsg64.deb` itself is one of the two unretrievable samples, but a sibling from the same family made it out: `nsgtrust.deb`, a 999-byte PHP file first seen on VT September 29. It is the same dual-mode pattern as `e6ee7c85.sig` with a different persistence dialect: in installer mode it rewrites the httpd.conf line `AddType image/x-icon .ico` into `AddType image/x-icon .ico\nAddHandler application/x-httpd-php .deb`, flips `php_flag engine on`, SUIDs the shell, scrubs the crontab, and reboots. In web mode it is the same `HTTP_NSC_CLIENTTYPE` 404-eval stub. The operators were shipping installers as generated variants from a template, not hand-editing each deployment.
+Unit 42's `nsg64.deb` itself never surfaced as a sample, but a sibling from the same family did: `nsgtrust.deb`, a 999-byte PHP file first seen on VT September 29. It is the same dual-mode pattern as `e6ee7c85.sig` with a different persistence dialect: in installer mode it rewrites the httpd.conf line `AddType image/x-icon .ico` into `AddType image/x-icon .ico\nAddHandler application/x-httpd-php .deb`, flips `php_flag engine on`, SUIDs the shell, scrubs the crontab, and reboots. In web mode it is the same `HTTP_NSC_CLIENTTYPE` 404-eval stub. The operators were shipping installers as generated variants from a template, not hand-editing each deployment.
 
 ### update_c08937.pl: The Second Stage, Secrets in the Clear
 
@@ -398,7 +398,7 @@ Its wire protocol is a 4-byte big-endian length followed by JSON, with verbs `op
 
 ### The Analog Kit: Cloning the Tunnelers from the Blog Post
 
-The GTI WHIPSHOT/SLAPSHOT samples remain unretrievable, but on October 2, two days after GTIG named those families, VT started receiving something almost as informative: two 25KB deployment bundles (internally tokenized `380d56` and `ae7427`) that are byte-identical except for their exfil path. Their embedded Python docstrings describe themselves as a "SLAPSHOT-analog" session manager and a "WHIPSHOT-analog" HTTP front, "lab PoC, CVE-2026-88771". Those family names only exist because GTIG coined them on September 30, so whatever this is, a copycat actor weaponizing the published TTPs, or a red-team kit that escaped the lab, it postdates disclosure.
+The GTI WHIPSHOT/SLAPSHOT samples themselves never surfaced, but on October 2, two days after GTIG named those families, VT started receiving something almost as informative: two 25KB deployment bundles (internally tokenized `380d56` and `ae7427`) that are byte-identical except for their exfil path. Their embedded Python docstrings describe themselves as a "SLAPSHOT-analog" session manager and a "WHIPSHOT-analog" HTTP front, "lab PoC, CVE-2026-88771". Those family names only exist because GTIG coined them on September 30, so whatever this is, a copycat actor weaponizing the published TTPs, or a red-team kit that escaped the lab, it postdates disclosure.
 
 It is operationally finished regardless of authorship. The bundle installs under `/nsconfig/.slap` (survives reboots with the config partition) and drops three webshells into the LogonPoint custom directory: `.slap.receiver`, `.ctxs.receiver`, and `receiver.deb`, all copies of one PHP file gated on a hardcoded cookie pair (`CsrfToken` must equal the per-deployment token `072874c28950cf7befd319d17e9709e7`, the command rides in `CsrfToken2`). The Perl agent implements the same `open/push/pull/exch/close/ping` grammar over `/tmp/.uxdport` that GTIG published; the Python pair (session manager on `127.0.0.1:9909`, HTTP front on `0.0.0.0:9910`, token `slap`) reimplements the 404-with-payload transport. Persistence is belt-and-braces: lines appended to `/nsconfig/rc.netscaler`, root crontab entries (`agent.pl` every minute, `boot.sh` every five), `<Files>` handler blocks plus `Alias /logon/LogonPoint/custom/receiver.v2.min.css` and a hex-suffix `AliasMatch` pointing at `.slap.receiver`, `chmod 6555 /bin/sh`, and a boot.sh that re-checks everything on startup because, as its own comment notes, the appliance rewrites httpd.conf on boot.
 
@@ -529,7 +529,7 @@ Everything below was collected from public sources, hashed, and analyzed statica
 
 Campaign sample hashes from vendor reporting: `ed082f744f035035900f67edf438f2f7d0528ac501234f63d476d65273cdb9a1` (.ctxs.receiver), `ae22ef2517b5c0fb47f78745b9cb5260acee0e751b89bcd354640ff8bc8d29ec` (nsg64.deb), `5ea5ea61e9062822bee3f66ef5ff47c217178d9e31936ad6daf10c5dfae44d12` (.ico webshell), `1bd314b661396c7086f6367fbbb48025e03ca2de69c073d53a8b0a38aa5fbb7d` / `79c65fa04541032e251fa4796b97800374b63c7982593dd1a2e0db605d429186` (Unit 42 staging pair), and the Arctic Wolf pack adds `73b74309f4728d169cc9edfb2767c5aadd75d39b62de93c935a86c777d2646bc`, `9c7bf01d2c2cb31a3609d27c1bc9abc60d86e37b7f9908547e0c75fb18b99aab` (nsmon.pl), `974b69782fdf5d67b97cfd508465939e44ee10798dbcc1e82b92d78776bad938` (update_c08937.pl), `927c7fbef2e620c1ce482c3ed67ebf53da97693c1d6c7552c77aec84ba982cf8` (Platypus bootstrap script). The GTI VirusTotal collection is `c794f2e5d051c46cd2ff5e429128d7e68954ba78e66735fc69362ec726e63ee4`.
 
-The VT sample set retrieved and verified for this teardown (first seen = VT first submission, UTC):
+The sample set verified for this teardown (first seen = first VirusTotal submission, UTC):
 
 | sha256 (first 12) | Type | Size | First seen | Identity |
 |---|---|---|---|---|
@@ -566,7 +566,7 @@ c98aee75c5e199c9b5527984ce48675d665963f7cab8ce9f2e82465de6b58727  0188b0eba4b01c
 72cff13fcba75504485e94fa6bfc5e9363e860f49efdba68feb583148eec38f2  b9b0a4380db462c706597bd3e6a08d4d99fcbbf0919d63eb99b488d396c8ce63
 ```
 
-The four VT records without retrievable files are `1bd314b661396c7086f6367fbbb48025e03ca2de69c073d53a8b0a38aa5fbb7d`, `6f5a2a452a7901323abd21879c6cecccb47c06aeeaccb1b467212f3b11e4b1e7`, `79c65fa04541032e251fa4796b97800374b63c7982593dd1a2e0db605d429186`, and `ae22ef2517b5c0fb47f78745b9cb5260acee0e751b89bcd354640ff8bc8d29ec` (Unit 42's nsg64.deb among them).
+Four hashes from the reporting have no published sample: `1bd314b661396c7086f6367fbbb48025e03ca2de69c073d53a8b0a38aa5fbb7d`, `6f5a2a452a7901323abd21879c6cecccb47c06aeeaccb1b467212f3b11e4b1e7`, `79c65fa04541032e251fa4796b97800374b63c7982593dd1a2e0db605d429186`, and `ae22ef2517b5c0fb47f78745b9cb5260acee0e751b89bcd354640ff8bc8d29ec` (Unit 42's nsg64.deb among them).
 
 ## Appendix B: IOC Index
 
