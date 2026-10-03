@@ -1,6 +1,6 @@
 ---
 title: "Twenty in Eighteen Hours: Tracking the NetScaler Second Wave Through Its Own Constants"
-description: "A follow-up investigation to the pitboss teardown: pivoting VirusTotal's corpus on the passwords, tokens, and placeholder strings extracted from the campaign samples turns two copycat bundles into a twenty-deployment operation with three code generations, surfaces chisel on the exfil host, doubles the Platypus enrollment count, and recovers a victim's implant config that phoned a lab address that does not exist. With the pivot methodology, its traps (the MD5 test vector that fakes attribution), and expanded IOCs."
+description: "A follow-up investigation to the pitboss teardown: pivoting the public malware corpus on the passwords, tokens, and placeholder strings extracted from the campaign samples turns two copycat bundles into a twenty-deployment operation with three code generations, surfaces chisel on the exfil host, doubles the Platypus enrollment count, and recovers a victim's implant config that phoned a lab address that does not exist. With the pivot methodology, its traps (the MD5 test vector that fakes attribution), and expanded IOCs."
 pubDate: "2026-10-03T23:00:00"
 permalink: "/2026/10/03/netscaler-second-wave-constant-pivot/"
 tags: ["Threat Intelligence", "NetScaler", "Reverse Engineering", "Threat Hunting"]
