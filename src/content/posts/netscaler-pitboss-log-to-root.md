@@ -409,7 +409,7 @@ Whatever its provenance, the bundle proves an uncomfortable point: the vendor an
 
 ### Pivoting the Constants: The Second Wave Is a Campaign, Not a Curiosity
 
-The constants extracted above are not just IOCs; they are search keys. A sweep of VirusTotal's corpus for the extracted passwords, tokens, and callback strings (plus the file relations of every campaign IP and domain) turned the two bundles I started with into twenty, and the picture from "interesting artifact" into "active, hourly deployment campaign". Everything below was verified against sample hashes; nothing was executed.
+The constants extracted above are not just IOCs; they are search keys. A sweep of VirusTotal's corpus for the extracted passwords, tokens, and callback strings (plus the file relations of every campaign IP and domain) turned the two bundles I started with into twenty, and the picture from "interesting artifact" into "active, hourly deployment campaign". Everything below was verified against sample hashes; nothing was executed. This sweep later grew into [its own follow-up post](/2026/10/03/netscaler-second-wave-constant-pivot/) with the full methodology and the traps it exposed.
 
 **Twenty deployments in eighteen hours.** Between October 2 at 15:38 UTC and October 3 at 09:43 UTC, twenty distinct analog-kit bundles landed on VT, every one sharing the same cookie gate (`072874c28950cf7befd319d17e9709e7`) and the same exfil host (`213.209.159.55:443`), each with its own path token (`/t/380d56`, `/t/906b4f`, `/t/818f74`, `/t/a779ab`, `/t/db6c6c`, `/t/a718e4`, and so on). The bundles come in three code generations, and the diffs read like a changelog written by someone watching real deployments fail:
 
