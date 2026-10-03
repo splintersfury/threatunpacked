@@ -2,6 +2,7 @@
 title: "Pitboss Never Sleeps: Reverse Engineering the NetScaler Log-to-Root Chain (CVE-2026-88771 / CVE-2026-88772)"
 description: "Full teardown of the September 2026 NetScaler ADC/Gateway zero-day campaign: the ns_monuploadd_err.pl log-poisoning root cause analyzed line by line from firmware, the watchTowr DTLS heap-overflow PoC dissected down to its setcontext/ROP chain, and the complete payload landscape grounded in first-hand analysis of 18 in-the-wild campaign samples: the dual-mode webshell installers, update_c08937.pl with its plaintext passwords, the nsmon.pl cron bind shell no vendor named, Platypus enrollment certificates that date the C2 infrastructure to September 2, and a post-disclosure WHIPSHOT/SLAPSHOT copycat kit. With detection and eradication guidance."
 pubDate: "2026-10-03T18:00:00"
+updatedDate: "2026-10-03T21:30:00"
 permalink: "/2026/10/03/netscaler-pitboss-log-to-root/"
 tags: ["Threat Intelligence", "Reverse Engineering", "NetScaler", "Webshells", "Incident Response"]
 draft: false
@@ -45,7 +46,7 @@ A timeline, assembled from vendor telemetry (all 2026):
 | Sep 29 | Public PoC; exploitation attempts within minutes; Sygnia observes a new `unexpectedly died` variant |
 | Sep 30 | Unit 42 and Sygnia advisories; Mandiant attribution statement; `.ctxs.receiver` first submitted to VT (detected by 1 of 94 engines) |
 | Oct 1 | TENEX publishes the "under 72 hours" recap and staging-host intel |
-| Oct 2 | First VT submissions of a self-branded "SLAPSHOT/WHIPSHOT-analog" kit (tokens `380d56`, `ae7427`) exfiltrating to a fresh host; sample-level view of the second wave |
+| Oct 2 | First VT submissions of a self-branded "SLAPSHOT/WHIPSHOT-analog" kit exfiltrating to a fresh host; twenty deployments follow within 18 hours across three code generations |
 
 The "72 hours" framing (TENEX) counts from the September 26 warning to the September 29 mass exploitation. The targeted zero-day window was actually three to four weeks longer.
 
@@ -406,6 +407,28 @@ Then it steals: `tar czf` of all of `/nsconfig`, the `ns.conf.0` through `.bak` 
 
 Whatever its provenance, the bundle proves an uncomfortable point: the vendor and GTIG descriptions were complete enough that a competent operator could rebuild the entire toolchain from the writeups alone, five days after disclosure, and point it at fresh infrastructure. Published TTP detail is an API for copycats.
 
+### Pivoting the Constants: The Second Wave Is a Campaign, Not a Curiosity
+
+The constants extracted above are not just IOCs; they are search keys. A sweep of VirusTotal's corpus for the extracted passwords, tokens, and callback strings (plus the file relations of every campaign IP and domain) turned the two bundles I started with into twenty, and the picture from "interesting artifact" into "active, hourly deployment campaign". Everything below was verified against sample hashes; nothing was executed.
+
+**Twenty deployments in eighteen hours.** Between October 2 at 15:38 UTC and October 3 at 09:43 UTC, twenty distinct analog-kit bundles landed on VT, every one sharing the same cookie gate (`072874c28950cf7befd319d17e9709e7`) and the same exfil host (`213.209.159.55:443`), each with its own path token (`/t/380d56`, `/t/906b4f`, `/t/818f74`, `/t/a779ab`, `/t/db6c6c`, `/t/a718e4`, and so on). The bundles come in three code generations, and the diffs read like a changelog written by someone watching real deployments fail:
+
+- generation one (25,158 bytes, eight deployments, Oct 2 15:38-20:05): the version dissected above;
+- generation two (26,367-26,370 bytes, from 21:20): adds a watchdog process (`/var/tmp/.slap-watch.pid`) and reworks the setuid rationale;
+- generation three (28,469-28,477 bytes, from Oct 3 03:51): adds a timestamped loot log (`/var/tmp/.s2loot.log`) and a `validate_tgz()` guard that runs `tar tzf` before every upload, which is exactly what you build after empty or truncated archives reach your server.
+
+Roughly one deployment per hour, iterating code between them. That is automation plus an operator in the loop.
+
+**The exfil host also serves chisel.** A 10.8MB FreeBSD binary fetched from `213.209.159.55` in sandbox runs is `chisel-freebsd-amd64` (sha256 `84f23d964ab636c81d95c3185f06a2ec628a9762dc767131d775500caf8dda0a`, go1.26.8, flagged as `hacktool.chisel/httptunnel`). So the second wave's tunnel layer is off-the-shelf chisel, hosted on the same box that collects the loot.
+
+**Platypus enrollment count, revised.** Four full bootstraps (each with a distinct one-shot `plt_` token, all pinning the identical CA pair: ingress minted September 2, project `b51a65e0-...` minted September 28) plus two one-line installers (`dl_d3giforcdfgc5hqurluy...` on Sept 28, `dl_3wrbowpypfk26nypk6fj...` on Sept 29). One server, six enrollments across two binary identities (`ns_827664.pl`, `.ns_09343.pl`), September 28-29. The primary actor's targeting window is visible in enrollment timestamps.
+
+**A victim artifact, and a silent implant.** A 47-byte text file uploaded September 28 is a real appliance's `/private/var/tmp/.nsmon/.cfg`: it contains `NSMON_CB=udp://192.168.100.2:4444` and `NSMON_PORT=0`, and no secret. That is nsmon.pl's hardcoded default callback, an RFC1918 address that cannot route anywhere: in at least one real deployment the dropper's environment did not reach the implant, the config was written with defaults, and the bind shell sat there phoning a lab address that does not exist. If you find `.nsmon/.cfg` on an appliance, the callback inside tells you which deployment style you are dealing with.
+
+**Infrastructure state and history.** The `update_c08937.pl` path on `64.94.85.67` now returns 404; `/lula` on `31.56.197.72` answers with a JSON-RPC error body (the staging host fronts an API service); both wave hosts serve a bare `ok` on arbitrary paths, and probe responses are already being captured by other hunters. Passive DNS for `entretiensol.com`: `213.186.33.5` (November 2025), then `162.255.119.22` and `195.123.233.245` (both August 24, 2026, three days after the fingerprinting wave began). The C2 domain is at least nine months older than the campaign; aged infrastructure, not fresh registration.
+
+**The mystery of the 32-hex placeholder, solved.** Searching the corpus for the template placeholder `e4d909c290d0fb1ca068ffaddf22cbd0` returns twenty hits in game-mod RAR archives and minified JavaScript bundles, which looked like a tooling lineage until I opened one: it is the canonical MD5 test vector, `md5('The quick brown fox jumps over the lazy dog.')`, which appears in the documentation comment of every JavaScript MD5 library ever shipped. The kit's author reached for the most famous hex string in computing as a placeholder. It also means the raw template panel is locked by construction: a 32-hex string in a SHA-256 comparison can never match any password, so the shell is inert until the deployment stage substitutes the real digest. Two lessons: verify content-search hits before calling them attribution, and a placeholder can be a design feature.
+
 ### Platypus: Off-the-Shelf C2, Appliance-Flavored
 
 TENEX's staging analysis found the open-source Go framework Platypus deployed as the C2 agent, with appliance-aware tradecraft: the binary contains no C2 address at all (server and token are delivered by a bootstrap that resolved to `entretiensol.com`), it installs as `/netscaler.local/ns_*.pl` (a dotfile-style directory and `.pl` extension chosen to read as Perl tooling in a process listing), and keeps its enrollment certificate, key, and working data under `/var/core/.ns-cache/`, hiding in the core-dump directory. Tasking uses WebSocket over mutual TLS. The most detectable quirk: mesh discovery over mDNS, multicasting a `platypus-mesh.tcp` service on UDP/5353 in cleartext. A NetScaler speaking mDNS is wrong on its face, and it is one of the few places this whole campaign lights up a network sensor without any log analysis. Its certificates are self-signed with subject `platypus-ingress`, issuer "Platypus project default", and URI `platypus://server/default`.
@@ -488,6 +511,7 @@ grep -i "sec_monitor" /flash/nsconfig/ns.conf
 ls -la /var/core/.ns-cache/           # Platypus enrollment material
 grep -rn -E "nsmon|\.slap" /etc/crontab /nsconfig/crontab /nsconfig/rc.netscaler 2>/dev/null
 ls -la /var/tmp/.nsmon /nsconfig/.slap /var/tmp/.ux 2>/dev/null
+ls -la /var/tmp/.slap-watch.pid /var/tmp/.s2loot.log 2>/dev/null   # analog-kit gen 2/3
 sockstat -4 -l | grep -E ":(41[0-9]{3}|99[0-9]{2})"    # nsmon / analog-kit listeners
 sockstat -4 -l                        # everything else unexpected
 ```
@@ -568,17 +592,48 @@ c98aee75c5e199c9b5527984ce48675d665963f7cab8ce9f2e82465de6b58727  0188b0eba4b01c
 
 Four hashes from the reporting have no published sample: `1bd314b661396c7086f6367fbbb48025e03ca2de69c073d53a8b0a38aa5fbb7d`, `6f5a2a452a7901323abd21879c6cecccb47c06aeeaccb1b467212f3b11e4b1e7`, `79c65fa04541032e251fa4796b97800374b63c7982593dd1a2e0db605d429186`, and `ae22ef2517b5c0fb47f78745b9cb5260acee0e751b89bcd354640ff8bc8d29ec` (Unit 42's nsg64.deb among them).
 
+Second-wave samples surfaced by the constant pivot ("Pivoting the Constants" section; first seen = first VT submission, UTC):
+
+| sha256 | Type | Size | First seen | What it is |
+|---|---|---|---|---|
+| `e5441b7d3d9d705fc6db8befc44974f13172267a42b7c9ca05a0144fca92e873` | Text | 47 B | Sep 28 19:44 | victim nsmon `.cfg`, default callback `udp://192.168.100.2:4444`, no secret |
+| `90275ff480ba1e9e6a9c95e78dda748b7155ae71be6886564ef0253cfe10c1a7` | Shell | 6.9 KB | Sep 28 20:22 | Platypus bootstrap, token `plt_wsemghw6hwzpjvcniwth.hwsh4pr63ue7gt22vnuq`, bin `ns_827664.pl` |
+| `008bfca8c2ec448377f02b2366a84dcdc541ca94042a3f2c63dd905bcd730c` | Shell | 7.0 KB | Sep 28 23:48 | Platypus bootstrap, token `plt_2uhfcg6a7npuwiuaiakb.w6rgc3kclkuwh7nhgr2h`, bin `.ns_09343.pl` |
+| `a2a907bc713fecac111d513e12311a0da983de50893ce1ac236e22eb9aa77ba1` | Shell | 151 B | Sep 29 04:05 | second Platypus one-line installer, token `dl_3wrbowpypfk26nypk6fj.erlcdi3xomfglunnik66` |
+| `beb04a1b3caf49af286ca4f733846fe2ec7719e2a8181590b66295876ee1158e` | JSON | 125 B | Sep 29 11:30 | staging response from `31.56.197.72/lula`: JSON-RPC error body |
+| `c706c2422dda5c1e485b8ead8c52b2618f1df7696b0066b4dd6b76300c8aea24` | Shell | 7.6 KB | Sep 29 15:03 | Platypus bootstrap, token `plt_znwetalqffjpztwndwvq.54ftkhp2n63qalhltgbv`, bin `.ns_09343.pl` |
+| `84f23d964ab636c81d95c3185f06a2ec628a9762dc767131d775500caf8dda0a` | ELF | 10.8 MB | Oct 1 14:21 | `chisel-freebsd-amd64` served from the exfil host (`hacktool.chisel`, go1.26.8) |
+| `2220044a55da27f7c528d5a5da1d26d15bae966a85c440b084c57ab0798a96d7` | Perl | 25,158 B | Oct 2 15:38 | analog-kit gen 1, exfil token `906b4f` |
+| `e8f594f94965ac4d51c89e99d4c5026fe6f64503ffd63a82fb465b9aa62b8740` | Perl | 25,158 B | Oct 2 15:59 | gen 1, token `818f74` |
+| `740daa04c2f66eede7576b11a57dc11a1ddb5896244ed6d3cc428bd134d7425f` | Perl | 25,158 B | Oct 2 16:33 | gen 1, token `a779ab` |
+| `53e61abcf0dcb9de2044968c5e72e60c03df2e485b1aaf8581e7268a8486a6a1` | Perl | 25,158 B | Oct 2 16:50 | gen 1, token `324d58` |
+| `72cff13fcba75504485e94fa6bfc5e9363e860f49efdba68feb583148eec38f2` | Perl | 25,158 B | Oct 2 16:52 | gen 1, token `380d56` |
+| `b9b0a4380db462c706597bd3e6a08d4d99fcbbf0919d63eb99b488d396c8ce63` | Perl | 25,158 B | Oct 2 17:29 | gen 1, token `ae7427` |
+| `767f2c349857b42157cd7a73ce8223f4f6ac9135d63b1321960df8570bf0f3a8` | Perl | 25,158 B | Oct 2 17:48 | gen 1, token `29a04f` |
+| `10517f49ef2fc81ffde667fd300b2677749b9c1604b7c35379535bf0d9bf6833` | Perl | 25,158 B | Oct 2 20:05 | gen 1, token `1f0a10` |
+| `ec6d42cc99e3c7870dc11606643e8b296e4aadafaf886f05506e1f515aa55eee` | Perl | 26,367 B | Oct 2 21:20 | gen 2 (watchdog), token `9c3166` |
+| `12b15fe585a21d33eeb863fc5a246596225a77185a314d55de3c980bbe11e9c0` | Perl | 26,370 B | Oct 2 21:39 | gen 2, token `3b6d2f` |
+| `83307fb218b557a0a1cab46e094b038f9b795d2d02bd04ac7ce4e0d3eb4ec8c3` | Perl | 26,370 B | Oct 2 21:39 | gen 2, token `471d83` |
+| `b9bc8d87ef77f63082445f5664e02a84db568f6d8147e077b97dc15df9f2a36b` | Perl | 26,367 B | Oct 2 21:53 | gen 2, token `274124` |
+| `12ff1448594844ffe072674e4da36c2bb92bce19bfdf494bcae0542ce6e1731a` | Perl | 26,367 B | Oct 3 01:00 | gen 2, token `818f74` (re-deploy) |
+| `4b0c3ebbe916831371b16cc4226079b6abde97245f24e5aa868a9786d4b2a152` | Perl | 26,367 B | Oct 3 01:32 | gen 2, token `db6c6c` |
+| `d04663bdab3183c94381d19eec7af59f90890497d5ad95c7af1c00d0fe8901dc` | Perl | 28,469 B | Oct 3 03:51 | gen 3 (loot log + validate), exfil path built at runtime |
+| `0a7f88a74e82725e8ceaf9aa0b25b43c43105ff7653b29a0cbba94ce40b04447` | Perl | 28,474 B | Oct 3 03:58 | gen 3, token `861cd3` |
+| `602b859d38c02c559f62e5c6f7ba30265b2ffd7faf528a3b0151727c7a1dc2d3` | Perl | 28,477 B | Oct 3 07:03 | gen 3, token `62cd78` |
+| `899299dcaa6531e450cfc844f7948bc3180c6cbebc43cf751e65ee261f6732cd` | Perl | 28,474 B | Oct 3 07:29 | gen 3, token `6f3c3e` |
+| `74da9485815ee124e2ebe155dbcfb758b54bd97760956998abf64838c865f78b` | Perl | 28,474 B | Oct 3 09:43 | gen 3, token `a718e4` |
+
 ## Appendix B: IOC Index
 
-**IPs.** 88771 injection: `149.104.78.208` (Rapid7). Staging/C2: `64.94.85.67`, `62.133.62.80` (UDP 39725 + HTTP 80 `/xd7h/`), `31.56.197.72`, `23.27.143.20`, `45.141.21.130`, `199.233.217.13`, `130.94.20.222`, `194.26.29.88`, `143.198.7.94`, `157.254.167.12`; analog-kit exfil `213.209.159.55:443` (paths `/t/380d56/`, `/t/ae7427/`). Unit 42 chain: `45.61.136.143`, `66.227.183.84`, `77.83.199.39`, `104.28.215.137`, `104.28.215.136`, `104.248.244.66`, `104.248.74.206`, `104.28.247.136`, `104.28.247.137`, `162.33.178.9`, `193.149.176.207`, `216.245.184.164`, `66.135.19.18`, `167.99.111.203`, `142.93.85.227`, `137.184.91.207`, `78.47.24.217`, `139.180.152.138`. Sygnia: `45.76.34.141`, `209.250.236.77`, `138.68.21.29`, `170.64.176.26`.
+**IPs.** 88771 injection: `149.104.78.208` (Rapid7). Staging/C2: `64.94.85.67`, `62.133.62.80` (UDP 39725 + HTTP 80 `/xd7h/`), `31.56.197.72`, `23.27.143.20`, `45.141.21.130`, `199.233.217.13`, `130.94.20.222`, `194.26.29.88`, `143.198.7.94`, `157.254.167.12`; analog-kit exfil `213.209.159.55:443` (also serves chisel), exfil path tokens `/t/{380d56,ae7427,906b4f,818f74,a779ab,324d58,29a04f,1f0a10,9c3166,3b6d2f,471d83,274124,bad2ad,db6c6c,861cd3,a718e4,6f3c3e,62cd78}`; historical `entretiensol.com` resolutions `213.186.33.5` (2025-11), `162.255.119.22`, `195.123.233.245` (2026-08-24). Unit 42 chain: `45.61.136.143`, `66.227.183.84`, `77.83.199.39`, `104.28.215.137`, `104.28.215.136`, `104.248.244.66`, `104.248.74.206`, `104.28.247.136`, `104.28.247.137`, `162.33.178.9`, `193.149.176.207`, `216.245.184.164`, `66.135.19.18`, `167.99.111.203`, `142.93.85.227`, `137.184.91.207`, `78.47.24.217`, `139.180.152.138`. Sygnia: `45.76.34.141`, `209.250.236.77`, `138.68.21.29`, `170.64.176.26`.
 
 **Domains.** `entretiensol.com` (Platypus, port 443; install path `/api/v1/install/dl_d3giforcdfgc5hqurluy.ctzlc5tkt3w6p5flcmnq`), `gsocket.io` (opportunist tooling).
 
 **Paths and files.** `/netscaler/ns_monuploadd_err.pl`; `/var/log/ns.log*`, `/var/log/messages`, `/var/log/httpaccess*`; `/var/netscaler/logon/LogonPoint/custom/.ctxs.receiver`; `/var/netscaler/logon/LogonPoint/.local_journal`; `/var/netscaler/logon/LogonPoint/{xua.html,insight-new.js}`; `/vpn/scripts/linux/nsg{client18,ser18,support,package64,build,64,installer,trust}*.deb`; `/var/netscaler/gui/vpn/scripts/linux/{e6ee7c85.sig,1bd8a664.sig,80974ca9.sig,LoginIcon.sig}`; `/netscaler/ns_gui/vpn/c88771.json`; `/etc/httpd.conf` (plus `/etc/httpd.conf.slap.bak`); `/flash/nsconfig/ns.conf`; `/var/python/bin/customsnmpd`; `/var/netscaler/.ns_suidcmd`; `/netscaler.local/ns_*.pl`; `/var/core/.ns-cache/`; `/tmp/{.uxdport,.uxdlock,1.py}`; `/var/tmp/.nsmon/` (nsmon.pl, `.cfg`, `.state`, `log`); `/nsconfig/.slap/` (agent.pl, bridge.pl, boot.sh); `/var/tmp/.ux/` (slapshot.py, whipd.py); `/tmp/update_result_3567cs.tgz`; `/bin/sh` (mode 6555).
 
-**Accounts, keys, cookies.** `wfr` (observed target account), `scanner-probe` (recon), `sec_monitor` (rogue superuser, password `ay#39&RGYvv4Xuzy`); `.local_journal` webshell password `QI@UEG5PC7oRt31E` (deployed hash replaces template hash `e4d909c290d0fb1ca068ffaddf22cbd0`); RC4 key `7489a0f93c67fa5cdaeb4b921d90594d` = MD5(`Rhfajaf1H992`); cookie gates `CsrfToken=e826d7ddf3c85920` (command cookie `NSC_TASS`) and `CsrfToken=072874c28950cf7befd319d17e9709e7` (analog kit, command cookie `CsrfToken2`); nsmon callback secret `y7lg7jq57b`; Platypus tokens `plt_wqmnjp5jusrcpzicqa2t.gg3s7yppdptle5dyefxj` and `dl_d3giforcdfgc5hqurluy.ctzlc5tkt3w6p5flcmnq`; Platypus project UUID `b51a65e0-e20b-444d-950e-8ff34b88c472`; staging markers `INDEX:` and `2N:`.
+**Accounts, keys, cookies.** `wfr` (observed target account), `scanner-probe` (recon), `sec_monitor` (rogue superuser, password `ay#39&RGYvv4Xuzy`); `.local_journal` webshell password `QI@UEG5PC7oRt31E` (deployed hash replaces template placeholder `e4d909c290d0fb1ca068ffaddf22cbd0`, which is the MD5 test vector of "The quick brown fox jumps over the lazy dog."); RC4 key `7489a0f93c67fa5cdaeb4b921d90594d` = MD5(`Rhfajaf1H992`); cookie gates `CsrfToken=e826d7ddf3c85920` (command cookie `NSC_TASS`) and `CsrfToken=072874c28950cf7befd319d17e9709e7` (analog kit, command cookie `CsrfToken2`); nsmon callback secret `y7lg7jq57b` and hardcoded default callback `udp://192.168.100.2:4444`; Platypus enrollment tokens `plt_wqmnjp5jusrcpzicqa2t.gg3s7yppdptle5dyefxj`, `plt_wsemghw6hwzpjvcniwth.hwsh4pr63ue7gt22vnuq`, `plt_2uhfcg6a7npuwiuaiakb.w6rgc3kclkuwh7nhgr2h`, `plt_znwetalqffjpztwndwvq.54ftkhp2n63qalhltgbv`, `dl_d3giforcdfgc5hqurluy.ctzlc5tkt3w6p5flcmnq`, `dl_3wrbowpypfk26nypk6fj.erlcdi3xomfglunnik66`; Platypus project UUID `b51a65e0-e20b-444d-950e-8ff34b88c472`; staging markers `INDEX:` and `2N:`.
 
-**Behavioral.** DTLS `SSL_HANDSHAKE_FAILURE` with `Reason "Handshake failure-Internal Error"` correlated with `pitboss NOT restarting NSPPE`; mDNS `platypus-mesh.tcp` on UDP/5353; HTTP 404 responses with large bodies to `/vpn/media/*.ico` or fake-CSS paths (including `receiver.v2.min.css` and `LogonUISimple.html.style.min.css`); `${IFS}`-obfuscated shell in any logged field; nsmon check-in `y7lg7jq57b host=... port=... uid=0 ...` over UDP 39725 and root listeners in 41000-41999 (plus 9909/9910 for the analog kit); cron lines `*/5 * * * * root perl /var/tmp/.nsmon/nsmon.pl`, `* * * * * /bin/perl /nsconfig/.slap/agent.pl`, `*/5 * * * * /bin/sh /nsconfig/.slap/boot.sh`; `/nsconfig/rc.netscaler` lines launching `/nsconfig/.slap/*`; uploads named `loot_nsconfig.tgz`, `loot_nshist.tgz`, `loot_httpd.conf`, `loot_diag.txt`, `sysbackup_*`, `update_result_*.tgz`; self-signed certs with subject `platypus-ingress` or CN `Platypus project default` (notBefore 2026-09-02) and CN `Platypus project b51a65e0-e20b-444d-950e-8ff34b88c472` (notBefore 2026-09-28).
+**Behavioral.** DTLS `SSL_HANDSHAKE_FAILURE` with `Reason "Handshake failure-Internal Error"` correlated with `pitboss NOT restarting NSPPE`; mDNS `platypus-mesh.tcp` on UDP/5353; HTTP 404 responses with large bodies to `/vpn/media/*.ico` or fake-CSS paths (including `receiver.v2.min.css` and `LogonUISimple.html.style.min.css`); `${IFS}`-obfuscated shell in any logged field; nsmon check-in `y7lg7jq57b host=... port=... uid=0 ...` over UDP 39725 and root listeners in 41000-41999 (plus 9909/9910 for the analog kit, and chisel tunnels from the exfil host's build); cron lines `*/5 * * * * root perl /var/tmp/.nsmon/nsmon.pl`, `* * * * * /bin/perl /nsconfig/.slap/agent.pl`, `*/5 * * * * /bin/sh /nsconfig/.slap/boot.sh`; `/nsconfig/rc.netscaler` lines launching `/nsconfig/.slap/*`; analog-kit gen 2/3 artifacts `/var/tmp/.slap-watch.pid` and `/var/tmp/.s2loot.log`; uploads named `loot_nsconfig.tgz`, `loot_nshist.tgz`, `loot_httpd.conf`, `loot_diag.txt`, `sysbackup_*`, `update_result_*.tgz`; self-signed certs with subject `platypus-ingress` or CN `Platypus project default` (notBefore 2026-09-02) and CN `Platypus project b51a65e0-e20b-444d-950e-8ff34b88c472` (notBefore 2026-09-28).
 
 ## Sources
 
