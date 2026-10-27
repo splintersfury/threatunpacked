@@ -1,6 +1,6 @@
 ---
 title: "Cloudflare, Wiz, ELB, and Still No Hostname: Building a Domain Coverage Census"
-description: "An IR census of hundreds of company domains sorted into a four-quadrant coverage matrix: Cloudflare versus Falcon, cloud origins versus our own environment. Where every log source died during the incident, why the Cloudflare account turned out to be the join table, and the API pipeline that turns the manual grind into a weekly diff with a dark-quadrant alert."
+description: "An IR census of hundreds of company domains sorted into a four-quadrant coverage matrix: Cloudflare versus Falcon, cloud origins versus our own environment. Where every log source died during the incident, what the Cloudflare API does and does not solve (enumeration is easy, hostnames are not), and the census pipeline that turns the manual grind into a weekly diff with a dark-quadrant alert."
 pubDate: "2026-10-28T22:00:00"
 permalink: "/2026/10/28/domain-coverage-census/"
 tags: ["Incident Response", "Cloud", "Attack Surface", "Detection Engineering"]
@@ -26,19 +26,20 @@ The incident walk is worth recording precisely, because every IR reader has stoo
 
 That is the finding underneath the finding: five products, each holding eighty percent of the answer, and the missing twenty percent different in every one. The join table between the external graph of names and the internal graph of hosts was not in any tool. It was a person.
 
-## The unlock: the account is the join table
+## What the Cloudflare API gives you, and what it does not
 
-The origin-hiding problem only exists when you look from outside. With API access to the company's own Cloudflare account, hiding stops: the API enumerates every zone, every DNS record with its proxied or DNS-only flag, and wherever load balancing is in play, the origin pools with their actual server addresses. The external graph turns out to have an owner, and the owner has an API.
+With API access to the company's own Cloudflare account, the hiding stops: the API enumerates every zone, every DNS record with its proxied or DNS-only flag, and wherever load balancing is in play, the origin pools with their server addresses. I want to be precise about what that bought, because it is less than it sounds. It gave me an authoritative inventory of names and next hops. It did not give me a single hostname.
 
-From there the census is mechanical:
+Look at what a record actually contains. A proxied A record's content is the origin address, and in a real fleet that address is an ELB, a CNAME that chains through two more aliases, a shared box hosting five different domains, or an IP that was recycled last quarter. The DNS-only records are worse: no CDN in the path means the record points straight at whatever it points at, and if that whatever is a load balancer you are back to target groups, and if it is on-prem you are back to NAT rules and a CMDB that has not been touched since the migration. The hostname question survived the API completely untouched. What the API ended was a different, smaller misery: not knowing what we owned. Names and next hops in an afternoon, hostnames still one grind per domain.
 
-1. Cloudflare API: every zone, every record, proxied flag set. This alone splits the fleet into edge-visible and origin-exposed-today.
-2. Origin per record: DNS-only records resolve directly. Proxied records pull their real origin from record content and the load balancer pools. Stragglers get historical DNS.
-3. Origin to host: cloud IPs into Wiz's inventory, on-prem IPs into internal DNS, CMDB and firewall NAT rules.
-4. Host to Falcon: the CrowdStrike API queried by hostname, normalized short name, local IP and MAC, because Falcon stores the OS computer name in its own dialect and the literal match always fails.
-5. One CSV out: domain, origin, host, quadrant. Plus a weekly rerun and a diff, so a domain appearing in the dark quadrant is an alert instead of the next incident's opening act.
+And that is the half of the fleet the API cannot even see. Domains registered by marketing on their own accounts. Zones still living at the registrar from before the Cloudflare migration. Domains with no CDN anywhere in the path. For those, the inventory problem starts earlier: pull the registrar lists, sweep certificate transparency for our names, walk the internal DNS zones, and then ask the business what else they own, because the honest answer is that some domains only surface when someone says "oh, that one".
 
-The core of it is small enough to read in one sitting:
+So the census pipeline is two halves, and they are not equally hard:
+
+1. Enumeration, easy now: Cloudflare API for zones and records with proxied flags; registrar exports and CT logs for the rest; internal DNS zones for the names that never went outside. An afternoon, or an agent session.
+2. Origin to host, the actual work: DNS-only records pointing at ELBs mean access logs or target group walks. Shared origins mean one host, five domains, and a decision about what "the host" even means. Cloud IPs mean a Wiz graph walk per address. On-prem IPs mean firewall NAT rules and a CMDB lookup that will miss. This step is per-domain analyst work, and the naming-convention match at the end is not a hack. In most fleets, the naming convention *is* the join key; the tooling just automates the guess.
+
+The core of the enumeration half is small enough to read in one sitting:
 
 ```python
 import re, urllib.request, urllib.parse, json
@@ -75,7 +76,7 @@ def census(token, falcon_norm_names):
 
 The full version adds the CrowdStrike OAuth host pull, the load-balancer origin pools for proxied records, a CMDB mapping file for on-prem origins, and writes the quadrant CSV. It runs on standard library alone; point `CF_API_TOKEN` at a read-only token and it enumerates the whole account in minutes. I ran it against mock data across all four quadrants before trusting the classification logic, which is the same advice I would give anyone running this against a live account: validate the quadrant logic on synthetic records first, because the embarrassing failure mode is reporting a covered domain as dark and triggering a fire drill.
 
-There is also a shorter road than scripting it. Cloudflare ships official MCP servers, which means an AI agent with a read-only token to your account can walk the same pipeline as a conversation: list the zones, pull the records with their proxied flags, name the origins. For a one-off census during an incident, that is a perfectly good way to get the raw table in minutes instead of writing the client. Two boundaries keep it honest. The quadrant logic and the Falcon join stay yours, because no Cloudflare tool knows what your coverage policy means, and bulk enumeration is exactly where agents get sloppy, so treat the agent's table as a draft and the CSV diff as the record. The same pattern, agent through MCP for collection, script for classification and drift, is reusable well past this census.
+There is also a shorter road for the enumeration half. Cloudflare ships official MCP servers, so an AI agent with a read-only token can have the zones, records and proxied flags in a conversation instead of a script. For the first half of the census that is genuinely faster, and during an incident it is the difference between a table now and a table after someone writes the client. Keep the celebration bounded though: the agent enumerates. It does not know your naming conventions, it cannot see the ELB target behind the CNAME, and it will confidently hand you a list where a shared origin is three separate hosts. Collection by agent, resolution by analyst, classification and drift by script. That split held up everywhere I pushed it.
 
 ## What the census says out loud
 
