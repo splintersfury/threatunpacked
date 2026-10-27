@@ -1,0 +1,9 @@
+title: "The MotW Endgame: Mark-of-the-Web Bypasses and the Zero-Day That Moved Inside the Shell"
+cves: ["CVE-2026-96951"]
+product: "Windows Shell"
+category: "windows"
+verdict: "IN THE WILD · KEV · no public PoC"
+verdictClass: "inthewild"
+detail: "Four-year lineage of MotW/SmartScreen bypasses traced to the zero-day's relocation inside the Shell, from patch-diff anatomy. Exploited in phishing campaigns; Qianxin reproduced, weaponized chain unpublished."
+permalink: "/2026/10/19/motw-endgame-cve-2026-96951/"
+date: "2026-10-19"

@@ -1,0 +1,9 @@
+title: "Patching the Log: clfs.sys Patch Diff and the October Trio"
+cves: ["CVE-2026-70233", "CVE-2026-85870", "CVE-2026-85355"]
+product: "Windows Common Log File System driver"
+category: "windows"
+verdict: "PATCH DIFF · deepest public artifact"
+verdictClass: "patchdiff"
+detail: "Line-by-line clfs.sys diff across thirty CVEs of history. Hardening is structural per-record validation, not spot fixes, on a driver with documented ransomware exploitation history."
+permalink: "/2026/10/19/clfs-patch-diff-october-trio/"
+date: "2026-10-19"

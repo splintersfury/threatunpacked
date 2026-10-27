@@ -1,0 +1,9 @@
+title: "1,413 CVEs: Triage Notes from the Record October Release"
+cves: ["CVE-2026-96951", "CVE-2026-108398", "CVE-2026-92707"]
+product: "Microsoft October 2026 release"
+category: "patch_triage"
+verdict: "TRIAGE · severity vs exploitability"
+verdictClass: "triage"
+detail: "The first four-digit Patch Tuesday tiered into a patch-first shortlist: exploited Shell zero-day, WDAC bypass, zero-click Outlook and preview-pane set, wormable server tail, and the two releases (Store, ESU) that lag in locked-down fleets."
+permalink: "/2026/10/28/patch-tuesday-october-2026-triage/"
+date: "2026-10-28"

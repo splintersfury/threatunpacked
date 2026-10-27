@@ -1,0 +1,8 @@
+title: "RansomHub Deep RE: Go Ransomware from the Inside"
+product: "RansomHub (Go)"
+category: "malware_re"
+verdict: "FULL RE"
+verdictClass: "chainre"
+detail: "Deep reverse engineering of the Go-built RansomHub locker: structure, crypto and operational behavior recovered from samples."
+permalink: "/2026/07/06/ransomhub-go-deep-re/"
+date: "2026-07-06"

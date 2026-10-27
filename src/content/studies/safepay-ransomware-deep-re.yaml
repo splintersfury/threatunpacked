@@ -1,0 +1,8 @@
+title: "SafePay Ransomware Deep RE"
+product: "SafePay (Go)"
+category: "malware_re"
+verdict: "FULL RE"
+verdictClass: "chainre"
+detail: "Deep reverse engineering of the Go-built SafePay ransomware from samples."
+permalink: "/2026/07/05/safepay-ransomware-deep-re/"
+date: "2026-07-05"

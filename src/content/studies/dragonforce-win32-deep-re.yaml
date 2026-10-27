@@ -1,0 +1,8 @@
+title: "DragonForce Win32 Locker Deep RE"
+product: "DragonForce (Win32)"
+category: "malware_re"
+verdict: "FULL RE"
+verdictClass: "chainre"
+detail: "Deep reverse engineering of the DragonForce Win32 locker from samples."
+permalink: "/2026/07/07/dragonforce-win32-deep-re/"
+date: "2026-07-07"

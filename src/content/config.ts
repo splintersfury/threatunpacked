@@ -33,4 +33,19 @@ const pages = defineCollection({
   }),
 });
 
-export const collections = { posts, pages };
+const studies = defineCollection({
+  type: 'data',
+  schema: z.object({
+    title: z.string(),
+    cves: z.array(z.string()).default([]),
+    product: z.string(),
+    category: z.enum(['windows', 'web_infrastructure', 'patch_triage', 'malware_re']),
+    verdict: z.string(),
+    verdictClass: z.enum(['reproduced', 'inthewild', 'patchdiff', 'triage', 'chainre', 'mixed']),
+    detail: z.string(),
+    permalink: z.string().optional(),
+    date: z.coerce.date(),
+  }),
+});
+
+export const collections = { posts, pages, studies };

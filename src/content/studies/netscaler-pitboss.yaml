@@ -1,0 +1,9 @@
+title: "Pitboss Never Sleeps: NetScaler Log-to-Root Campaign"
+cves: ["CVE-2026-88771", "CVE-2026-88772"]
+product: "NetScaler ADC"
+category: "web_infrastructure"
+verdict: "CHAIN RE'D FROM SAMPLES"
+verdictClass: "chainre"
+detail: "First-hand sample reverse engineering of the log-to-root campaign: update_c08937.pl plaintext credentials, nsmon.pl cron bind shell, Platypus enrollment certificate authorities minted the day before first exploitation."
+permalink: "/2026/10/03/netscaler-pitboss-log-to-root/"
+date: "2026-10-03"

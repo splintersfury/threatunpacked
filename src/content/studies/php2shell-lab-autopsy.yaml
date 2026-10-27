@@ -1,0 +1,9 @@
+title: "php2shell Lab Autopsy: session.upload_progress UAF Pair"
+cves: ["CVE-2026-109618", "CVE-2026-109619"]
+product: "PHP core (mod_php, php-fpm, cli-server)"
+category: "web_infrastructure"
+verdict: "MIXED · fpm SIGSEGV reproduced 3/3, flagship mod_php chain failed independently"
+verdictClass: "mixed"
+detail: "Rebuilt PHP with sanitizers and drove every SAPI: arming and OOM confirmed on stock configs, fpm worker crash reproduced deterministically with clean 8.4.27 differential, flock-leak and self-deadlock DoS family found, and the loudest public chain (5/5 claim) produced zero OOMs in independent hands."
+permalink: "/2026/10/28/php2shell-lab-autopsy/"
+date: "2026-10-28"

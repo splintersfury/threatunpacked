@@ -1,0 +1,9 @@
+title: "Twenty in Eighteen Hours: the NetScaler Second Wave Through Its Own Constants"
+cves: []
+product: "NetScaler ADC"
+category: "web_infrastructure"
+verdict: "20-DEPLOYMENT CAMPAIGN MAPPED · 3 generations"
+verdictClass: "chainre"
+detail: "Constant-pivot methodology over the public malware corpus turned two copycat bundles into a twenty-deployment operation across three code generations, with the pivot traps documented (MD5 test vector faking attribution)."
+permalink: "/2026/10/03/netscaler-second-wave-constant-pivot/"
+date: "2026-10-03"
