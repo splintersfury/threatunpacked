@@ -78,6 +78,25 @@ The full version adds the CrowdStrike OAuth host pull, the load-balancer origin 
 
 There is also a shorter road for the enumeration half. Cloudflare ships official MCP servers, so an AI agent with a read-only token can have the zones, records and proxied flags in a conversation instead of a script. For the first half of the census that is genuinely faster, and during an incident it is the difference between a table now and a table after someone writes the client. Keep the celebration bounded though: the agent enumerates. It does not know your naming conventions, it cannot see the ELB target behind the CNAME, and it will confidently hand you a list where a shared origin is three separate hosts. Collection by agent, resolution by analyst, classification and drift by script. That split held up everywhere I pushed it.
 
+The census also runs in reverse, and IR asks it that way around: I am standing on a host, what is it serving, does it even know? Four artifacts answer it, in order of authority. The vhost config is the host's own claim: nginx `server_name` directives, Apache `ServerAlias`, IIS bindings, Kubernetes ingresses, which is literally a domain-to-service table. The certificate SANs on disk are what the box is certified to serve, and they routinely remember domains that DNS has already forgotten. The Host header distribution in the access logs is ground truth for what the box is *actually* serving, as opposed to configured to serve. And DNS records pointing at its addresses catch the case the host cannot know about by itself, a CDN rule routing to it from above. Configured, certified, actually served: three different claims, and the gaps between them are where the findings live.
+
+That is fine for one host during an incident. For a fleet of thousands it is unusable, and the fix is an inversion: stop walking hosts, walk aggregation points. Nearly every domain-to-host mapping in a fleet is recorded somewhere above the host, in a handful of places that one API call each covers. CDN zones and rules. Load balancer listener rules with their host-header conditions and target groups. Kubernetes ingresses, one per cluster. Two or three API calls per aggregation point collapses thousands of hosts into a handful of configs, and the census script from earlier is already half of this.
+
+What remains after the aggregation points are walked is the interesting residue: hosts listening on 80 or 443 that appear in no listener rule, no target group, no ingress. Those are the direct-serving stragglers, and they are exactly the machines nobody remembered when the CDN migration happened. Finding them needs endpoint data, and this is where the EDR fleet you already have pays for itself twice: Falcon's Host Insights reports listening ports and applications per host without touching a terminal, so the direct-server candidate list is an inventory query, not a thousand SSH sessions. For the candidates, one read-only response script sweeps the stragglers for vhost names, certificate SANs and listeners:
+
+```sh
+#!/bin/sh
+# read-only collector for direct-serving hosts (agent remote response)
+h=$(hostname -f 2>/dev/null || hostname)
+echo "host=$h"
+grep -rhE 'server_name|ServerAlias' /etc/nginx /etc/httpd /etc/apache2 2>/dev/null
+find /etc/letsencrypt/live /etc/ssl -name '*.crt' 2>/dev/null \
+  | xargs -r -n1 openssl x509 -noout -ext subjectAltName 2>/dev/null
+ss -tlnp 2>/dev/null | awk '$4 ~ /:(80|443)$/'
+```
+
+Shipped through the agent's remote response to the candidate list only, this is minutes of work across a fleet, and its output merges into the same census CSV the domain walk produces. The standing version is one scheduled ingest: aggregation-point APIs daily, collector sweep on new listening hosts, diff on write. The dark quadrant stops growing because the census is watching it grow.
+
 ## What the census says out loud
 
 Two sentences survive every leadership review. How many domains sit in each quadrant. And what changed since last week. The first turns an argument about security posture into a number. The second turns the census from a project into a control, because fleets drift: someone registers a domain, points it at a test box, forgets it, and the dark quadrant quietly grows one row.
