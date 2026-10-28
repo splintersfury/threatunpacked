@@ -5,7 +5,9 @@
     <p class="mmu-line"><span class="mmu-k">va&nbsp;&nbsp;</span><span class="mmu-va" id="pw-va">resolving&hellip;</span></p>
     <p class="mmu-line"><span class="mmu-k">walk</span> <span id="pw-path" class="mmu-path">cr3 &rarr;</span></p>
   </div>
-  <div class="pagedump" id="pw-dump" aria-hidden="true"></div>
+  <div class="pagedump" id="pw-dump" aria-hidden="true">
+    <div class="scanbar" id="pw-scanbar"></div>
+  </div>
 </section>
 
 <style>
@@ -13,7 +15,7 @@
     position: relative;
     height: clamp(250px, 34vh, 350px);
     overflow: hidden;
-    background: #0b0e14;
+    background: linear-gradient(180deg, #0a0d16 0%, #0b0e14 42%, #0b0e14 74%, #090c12 100%);
     border-bottom: 1px solid #1c2536;
   }
   #pw-canvas {
@@ -44,15 +46,17 @@
   }
   .mmu-line { margin: 0; white-space: nowrap; }
   .mmu-k { color: var(--muted); }
-  .mmu-va { color: var(--num, #e0af68); }
-  .mmu-path { color: var(--accent, #7dcfff); }
+  .mmu-va { color: var(--num, #e0af68); transition: opacity 0.4s ease; }
+  .mmu-path { color: var(--accent, #7dcfff); transition: opacity 0.4s ease; }
   .mmu-path .miss { color: var(--crit, #f7768e); }
   .mmu-path .phys { color: var(--accent2, #9ece6a); }
+
+  /* page dump pane: runtime-built rows, hence :global */
   .pagedump {
     position: absolute;
     right: 1.25rem;
     top: 50%;
-    transform: translateY(-50%) translateY(6px);
+    transform: translateY(-50%) translateY(8px);
     z-index: 2;
     font-family: var(--font-mono);
     font-size: 0.68rem;
@@ -64,22 +68,31 @@
     border-radius: 4px;
     padding: 0.55rem 0.8rem;
     opacity: 0;
-    transition: opacity 0.45s ease, transform 0.45s ease;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+    overflow: hidden;
   }
   .pagedump.show { opacity: 1; transform: translateY(-50%); }
-  /* dump rows are built at runtime, so these must be global */
+  .scanbar {
+    position: absolute;
+    top: 6%;
+    bottom: 6%;
+    width: 16px;
+    background: linear-gradient(90deg, transparent, rgba(125, 207, 255, 0.18), rgba(223, 167, 95, 0.35), transparent);
+    left: -20px;
+  }
   :global(.pagedump .drow) { margin: 0; display: flex; align-items: center; gap: 0.7rem; white-space: pre; }
   :global(.pagedump .off) { color: var(--muted); }
   :global(.pagedump .hex) { display: flex; gap: 0.55ch; }
-  :global(.pagedump .b) { color: #2e3b55; transition: color 0.15s; min-width: 2ch; text-align: center; }
+  :global(.pagedump .b) { color: #2e3b55; transition: color 0.3s ease; min-width: 2ch; text-align: center; }
   :global(.pagedump .b.lit) { color: var(--ink, #c4cfdf); }
   :global(.pagedump .b.sig) { color: #0b0e14; background: var(--accent2, #9ece6a); border-radius: 2px; font-weight: 600; }
   :global(.pagedump .b.na) { color: var(--crit, #f7768e); }
-  :global(.pagedump .asc) { color: #2e3b55; min-width: 8ch; transition: color 0.15s; }
+  :global(.pagedump .asc) { color: #2e3b55; min-width: 8ch; transition: color 0.3s ease; }
   :global(.pagedump .asc.lit) { color: var(--accent, #7dcfff); }
-  :global(.pagedump .dtag) { margin: 0.3rem 0 0; color: var(--accent2, #9ece6a); }
+  :global(.pagedump .dtag) { margin: 0.3rem 0 0; color: var(--accent2, #9ece6a); opacity: 0; transition: opacity 0.5s ease; }
   :global(.pagedump.abort .dtag) { color: var(--crit, #f7768e); }
-  /* small screens: compact pane, bottom-right, still visible */
+
+  /* small screens: compact pane, bottom-right */
   @media (max-width: 1020px) {
     .pagedump {
       top: auto;
@@ -95,11 +108,15 @@
 </style>
 
 <script>
-  // The machine under the page. Every symbol in the listing resolves
-  // through the same four-level x64 page walk this band runs on loop:
-  // cr3 -> PML4 -> PDPT -> PD -> PT -> 4 KiB page, and every so often a
-  // not-present entry raises #PF. The indices are real: each hop is
-  // (va >> shift) & 0x1FF of the address shown in the readout.
+  // The memory river. The band is a slow stream of data; every few
+  // seconds the mmu gathers a handful of it into a bright mote that
+  // swims the width of the page, and where it pauses, a level of the
+  // page tables is consulted - cr3 -> PML4 -> PDPT -> PD -> PT -> a
+  // 4 KiB page that settles into the water below and dumps as hex.
+  // Once per round a walk reaches for a page that is not there: the
+  // stream has a hole, the mote scatters, #PF. Indices are real:
+  // each is (va >> shift) & 0x1FF of the address in the readout.
+  // Motion is continuous: noise flow, eased travel, no metronome.
   const boot = async () => {
     const canvas = document.getElementById('pw-canvas') as HTMLCanvasElement | null;
     if (!canvas) return;
@@ -112,165 +129,201 @@
     } catch {
       return;
     }
-    renderer.setClearColor(0x0b0e14, 1);
+    renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 200);
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.set(0, 0, 14);
 
     const SKY = 0x7dcfff, GREEN = 0x9ece6a, AMBER = 0xe0af68, CRIT = 0xf7768e;
-    const SLAB = 0x0f1420, CELL = 0x18233a, EDGE = 0x22304a;
+    const W = 23;           // half-width of the river in world units
+    const WATER = -2.55;    // waterline where landed pages settle
 
     const hex = (v: number) => '0x' + v.toString(16).toUpperCase().padStart(12, '0');
     const idxOf = (va: number, shift: number) => Math.floor(va / Math.pow(2, shift)) & 511;
+    const ease = (p: number) => p * p * (3 - 2 * p);
+    const easeOut = (p: number) => 1 - Math.pow(1 - p, 3);
 
     const WALKS: { va: number; miss?: number }[] = [
       { va: 0x00007ff61e4b9c40 },
       { va: 0xfffff8033a01b4a0 },
       { va: 0x0000018f7b2e1000 },
-      { va: 0xffff9004c3187000, miss: 2 }, // pd entry absent -> #PF
+      { va: 0xffff9004c3187000, miss: 2 },
     ];
-    const LEVELS = [
-      { y: 3.6, name: 'pml4', shift: 39 },
-      { y: 1.2, name: 'pdpt', shift: 30 },
-      { y: -1.2, name: 'pd', shift: 21 },
-      { y: -3.6, name: 'pte', shift: 12 },
-    ];
-    const PHYS_Y = -6.7;
+    const LEVEL_NAMES = ['pml4', 'pdpt', 'pd', 'pte'];
+    const PULSE_X = [-13.5, -5, 3.5, 11];
 
-    const cellXZ = (idx: number): [number, number] => {
-      const c = idx % 32, r = Math.floor(idx / 32);
-      return [(c - 15.5) * 0.34, (r - 7.5) * 0.34];
-    };
+    const elVa = document.getElementById('pw-va')!;
+    const elPath = document.getElementById('pw-path')!;
 
-    // ── level tables ─────────────────────────────────────────────
-    const slabGeo = new THREE.BoxGeometry(12.2, 0.16, 6.4);
-    const cellGeo = new THREE.BoxGeometry(0.26, 0.05, 0.26);
-    const levelObjs = LEVELS.map((L) => {
-      const g = new THREE.Group();
-      g.position.y = L.y;
-      const slab = new THREE.Mesh(slabGeo, new THREE.MeshBasicMaterial({ color: SLAB }));
-      const edges = new THREE.LineSegments(
-        new THREE.EdgesGeometry(slabGeo),
-        new THREE.LineBasicMaterial({ color: EDGE })
-      );
-      g.add(slab, edges);
-      const inst = new THREE.InstancedMesh(cellGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), 512);
-      const m4 = new THREE.Matrix4();
-      const shade = new THREE.Color();
-      for (let i = 0; i < 512; i++) {
-        const [x, z] = cellXZ(i);
-        m4.makeTranslation(x, 0.1, z);
-        inst.setMatrixAt(i, m4);
-        shade.setHex(CELL).multiplyScalar(0.55 + ((i * 37) % 13) / 42);
-        inst.setColorAt(i, shade);
-      }
-      inst.instanceMatrix.needsUpdate = true;
-      g.add(inst);
-      scene.add(g);
-      return { ...L, group: g };
-    });
-
-    // ── cr3 chip ─────────────────────────────────────────────────
-    const cr3 = new THREE.Mesh(
-      new THREE.BoxGeometry(1.5, 0.38, 0.9),
-      new THREE.MeshBasicMaterial({ color: AMBER })
-    );
-    cr3.position.set(-5.4, LEVELS[0].y + 2.1, 0);
-    scene.add(cr3);
-
-    // ── highlight + glow ─────────────────────────────────────────
-    const hi = new THREE.Mesh(
-      new THREE.BoxGeometry(0.34, 0.16, 0.34),
-      new THREE.MeshBasicMaterial({ color: SKY })
-    );
+    // ── shared glow texture ──────────────────────────────────────
     const glowTex = (() => {
       const c = document.createElement('canvas'); c.width = c.height = 64;
       const g = c.getContext('2d')!;
-      const r = g.createRadialGradient(32, 32, 2, 32, 32, 30);
-      r.addColorStop(0, 'rgba(255,255,255,0.9)');
+      const r = g.createRadialGradient(32, 32, 1, 32, 32, 31);
+      r.addColorStop(0, 'rgba(255,255,255,1)');
+      r.addColorStop(0.35, 'rgba(255,255,255,0.45)');
       r.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = r; g.fillRect(0, 0, 64, 64);
       const t = new THREE.CanvasTexture(c);
       t.colorSpace = THREE.SRGBColorSpace;
       return t;
     })();
-    const hiGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: glowTex, color: SKY, transparent: true, opacity: 0.8,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    }));
-    hiGlow.scale.set(1.6, 1.6, 1);
-    scene.add(hi, hiGlow);
-    const cr3Glow = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: glowTex, color: AMBER, transparent: true, opacity: 0.7,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    }));
-    cr3Glow.scale.set(2.4, 2.4, 1);
-    cr3Glow.position.copy(cr3.position);
-    scene.add(cr3Glow);
+    const ringTex = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 128;
+      const g = c.getContext('2d')!;
+      g.strokeStyle = 'rgba(255,255,255,0.9)';
+      g.lineWidth = 3;
+      g.beginPath();
+      g.arc(64, 64, 58, 0, Math.PI * 2);
+      g.stroke();
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
 
-    // ── beam + spark ─────────────────────────────────────────────
-    const beamMat = new THREE.LineBasicMaterial({
-      color: SKY, transparent: true, opacity: 0, blending: THREE.AdditiveBlending,
-    });
-    const beamGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]);
-    const beam = new THREE.Line(beamGeo, beamMat);
-    const spark = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: glowTex, color: SKY, transparent: true, opacity: 0,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    }));
-    spark.scale.set(0.9, 0.9, 1);
-    scene.add(beam, spark);
-
-    // ── physical page lattice ────────────────────────────────────
-    const PN = 128;
-    const pPos = new Float32Array(PN * 3);
-    const pSeed = new Float32Array(PN);
-    for (let i = 0; i < PN; i++) {
-      const c = i % 32, r = Math.floor(i / 32);
-      pPos[i * 3] = (c - 15.5) * 0.34;
-      pPos[i * 3 + 1] = PHYS_Y + 0.15 + (r % 4) * 0.14;
-      pPos[i * 3 + 2] = (Math.floor(i / 32) - 1.5) * 0.6;
-      pSeed[i] = Math.random();
+    // ── the river: GPU-flowing particles ─────────────────────────
+    const N = 1150;
+    const aSeed = new Float32Array(N);
+    const aX0 = new Float32Array(N);
+    const aY0 = new Float32Array(N);
+    const aZ0 = new Float32Array(N);
+    const aSpd = new Float32Array(N);
+    const aSize = new Float32Array(N);
+    const aCol = new Float32Array(N * 3);
+    const cream = [0.77, 0.81, 0.87], sky = [0.49, 0.81, 1.0], green = [0.62, 0.81, 0.42], amber = [0.88, 0.69, 0.41];
+    for (let i = 0; i < N; i++) {
+      aSeed[i] = Math.random();
+      aX0[i] = Math.random() * 2 * W;
+      aY0[i] = (Math.random() - 0.5) * 6.4;
+      aZ0[i] = (Math.random() - 0.5) * 9 - 1.5;
+      aSpd[i] = 0.55 + Math.random() * 1.5;
+      aSize[i] = 1.5 + Math.random() * 2.6;
+      const r = Math.random();
+      const base = r < 0.1 ? sky : r < 0.16 ? green : r < 0.22 ? amber : cream;
+      const dim = 0.3 + Math.random() * 0.55;
+      aCol[i * 3] = base[0] * dim;
+      aCol[i * 3 + 1] = base[1] * dim;
+      aCol[i * 3 + 2] = base[2] * dim;
     }
-    const pGeo = new THREE.BufferGeometry();
-    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-    pGeo.setAttribute('aSeed', new THREE.BufferAttribute(pSeed, 1));
-    const physMat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uWave: { value: 0 } },
-      transparent: true, depthWrite: false,
+    const riverGeo = new THREE.BufferGeometry();
+    riverGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3)); // unused, kept for three
+    riverGeo.setAttribute('aSeed', new THREE.BufferAttribute(aSeed, 1));
+    riverGeo.setAttribute('aX0', new THREE.BufferAttribute(aX0, 1));
+    riverGeo.setAttribute('aY0', new THREE.BufferAttribute(aY0, 1));
+    riverGeo.setAttribute('aZ0', new THREE.BufferAttribute(aZ0, 1));
+    riverGeo.setAttribute('aSpd', new THREE.BufferAttribute(aSpd, 1));
+    riverGeo.setAttribute('aSize', new THREE.BufferAttribute(aSize, 1));
+    riverGeo.setAttribute('aColor', new THREE.BufferAttribute(aCol, 3));
+    const riverUniforms = {
+      uTime: { value: 0 },
+      uMote: { value: new THREE.Vector4(0, 0, 0, 0) },   // xyz + push strength
+      uMoteColor: { value: new THREE.Color(SKY) },
+      uHole: { value: new THREE.Vector4(0, 0, 0, 0) },   // xyz + strength
+      uSplash: { value: new THREE.Vector4(0, 0, 0, 0) }, // xyz + strength
+    };
+    const river = new THREE.Points(riverGeo, new THREE.ShaderMaterial({
+      uniforms: riverUniforms,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
       vertexShader: /* glsl */ `
-        attribute float aSeed;
         uniform float uTime;
-        uniform float uWave;
-        varying float vA;
+        uniform vec4 uMote;
+        uniform vec3 uMoteColor;
+        uniform vec4 uHole;
+        uniform vec4 uSplash;
+        attribute float aSeed;
+        attribute float aX0;
+        attribute float aY0;
+        attribute float aZ0;
+        attribute float aSpd;
+        attribute float aSize;
+        attribute vec3 aColor;
+        varying vec3 vColor;
+        varying float vAlpha;
         void main() {
-          float d = length(position.xz) / 5.4;
-          vA = smoothstep(d, d - 0.18, uWave) * (0.55 + 0.45 * sin(uTime * 3.0 + aSeed * 40.0));
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = 46.0 / -mv.z;
+          vec3 p;
+          p.x = mod(aX0 + uTime * aSpd, 46.0) - 23.0;
+          p.y = aY0 + sin(uTime * 0.35 + aSeed * 6.2831 + p.x * 0.14) * 0.5;
+          p.z = aZ0 + cos(uTime * 0.28 + aSeed * 4.7 + p.y * 0.2) * 0.35;
+
+          // mote wake: gentle push away, tinted toward the mote
+          vec3 dm = p - uMote.xyz;
+          float dm2 = dot(dm.xy, dm.xy);
+          float wake = uMote.w * exp(-dm2 * 0.55);
+          p.xy += normalize(dm.xy + vec2(0.0001)) * wake * 0.5;
+
+          // the hole: not-present memory pushes the stream away and dims it
+          vec3 dh = p - uHole.xyz;
+          float dh2 = dot(dh.xy, dh.xy);
+          float hole = uHole.w * smoothstep(3.4, 0.4, length(dh.xy));
+          p.xy += normalize(dh.xy + vec2(0.0001)) * hole * 0.9;
+
+          vColor = mix(aColor, uMoteColor, clamp(wake * 1.4, 0.0, 0.8));
+          vAlpha = (0.28 + 0.72 * (0.5 + 0.5 * sin(uTime * (0.4 + aSeed) + aSeed * 40.0))) * 0.85
+                   * (1.0 - clamp(hole, 0.0, 0.85));
+
+          // landing splash: green lift near the waterline
+          float ds = length(p.xy - uSplash.xy);
+          vColor = mix(vColor, vec3(0.62, 0.81, 0.42), uSplash.w * exp(-ds * ds * 0.5) * 0.9);
+          vAlpha += uSplash.w * exp(-ds * ds * 0.5) * 0.5;
+
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_PointSize = aSize * (52.0 / -mv.z);
           gl_Position = projectionMatrix * mv;
         }
       `,
       fragmentShader: /* glsl */ `
-        varying float vA;
+        varying vec3 vColor;
+        varying float vAlpha;
         void main() {
           float d = length(gl_PointCoord - 0.5);
-          float a = smoothstep(0.5, 0.1, d) * vA;
+          float a = smoothstep(0.5, 0.08, d) * vAlpha;
           if (a < 0.01) discard;
-          gl_FragColor = vec4(0.62, 0.81, 0.42, a);
+          gl_FragColor = vec4(vColor, a);
         }
       `,
-    });
-    const phys = new THREE.Points(pGeo, physMat);
-    scene.add(phys);
+    }));
+    scene.add(river);
 
-    // ── ui refs ──────────────────────────────────────────────────
-    const elVa = document.getElementById('pw-va')!;
-    const elPath = document.getElementById('pw-path')!;
-    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    // ── the mote: bright walker with a fading trail ──────────────
+    const mote = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTex, color: SKY, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    mote.scale.set(1.5, 1.5, 1);
+    scene.add(mote);
+    const TRAIL = 22;
+    const trailPos = new Float32Array(TRAIL * 3);
+    const trailGeo = new THREE.BufferGeometry();
+    trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+    const tCol = new Float32Array(TRAIL * 3);
+    for (let i = 0; i < TRAIL; i++) {
+      const f = 1 - i / TRAIL;
+      tCol[i * 3] = 0.49 * f; tCol[i * 3 + 1] = 0.81 * f; tCol[i * 3 + 2] = 1.0 * f;
+    }
+    trailGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3));
+    const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.7,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    scene.add(trail);
 
-    // ── page dump: hex scan of whatever page the walk landed on ──
+    // ── pulse rings: a level consulted ───────────────────────────
+    const rings: { s: THREE.Sprite; born: number }[] = [];
+    function ring(x: number, y: number, color: number, now: number) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: ringTex, color, transparent: true, opacity: 0.55,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      s.position.set(x, y, 1);
+      s.scale.setScalar(0.5);
+      s.renderOrder = 5;
+      scene.add(s);
+      rings.push({ s, born: now });
+    }
+
+    // ── page dump (hex scan of the landing) ──────────────────────
     const DUMPS = [
       { seed: 11, sig: { row: 0, col: 0, len: 2, bytes: [0x4d, 0x5a] }, tag: 'sig: MZ · dos header' },
       { seed: 29, sig: { row: 4, col: 3, len: 4, bytes: [0x50, 0x72, 0x6f, 0x63] }, tag: 'pool tag: Proc' },
@@ -278,24 +331,24 @@
       { seed: 65, fault: true, tag: '#PF · page not resident' },
     ];
     const dumpEl = document.getElementById('pw-dump')!;
+    const scanbar = document.getElementById('pw-scanbar')!;
     let dump: {
-      cells: { el: HTMLElement; c: number; sig: boolean }[];
+      cells: { el: HTMLElement; c: number }[];
       ascEls: HTMLElement[];
-      rows: { sig: number; bytes: (number | null)[] }[];
-      tag: string;
+      rows: { bytes: (number | null)[] }[];
       start: number;
       fault: boolean;
     } | null = null;
 
     function showDump(wi: number, t: number, fault: boolean) {
       const spec = DUMPS[wi % DUMPS.length];
-      dumpEl.innerHTML = '';
+      dumpEl.querySelectorAll('.drow, .dtag').forEach((n) => n.remove());
       dumpEl.classList.toggle('abort', !!fault);
-      let x = spec.seed * 2654435761 % 2147483647;
+      let x = (spec.seed * 2654435761) % 2147483647;
       const rnd = () => (x = (x * 48271) % 2147483647) & 0xff;
-      const cells: { el: HTMLElement; c: number; sig: boolean }[] = [];
+      const cells: { el: HTMLElement; c: number }[] = [];
       const ascEls: HTMLElement[] = [];
-      const rows: { sig: number; bytes: (number | null)[] }[] = [];
+      const rows: { bytes: (number | null)[] }[] = [];
       for (let r = 0; r < 8; r++) {
         const row = document.createElement('p');
         row.className = 'drow';
@@ -306,14 +359,14 @@
         hexWrap.className = 'hex';
         const bytes: (number | null)[] = [];
         for (let c = 0; c < 8; c++) {
-          const isSig = !fault && spec.sig && r === spec.sig.row && c >= spec.sig.col && c < spec.sig.col + spec.sig.len;
-          const b = fault ? null : (isSig ? spec.sig.bytes![c - spec.sig.col] : rnd());
+          const isSig = !fault && r === spec.sig.row && c >= spec.sig.col && c < spec.sig.col + spec.sig.len;
+          const b = fault ? null : (isSig ? spec.sig.bytes[c - spec.sig.col] : rnd());
           bytes.push(b);
           const el = document.createElement('span');
           el.className = 'b' + (isSig ? ' sig' : '');
           el.textContent = fault ? '??' : (b as number).toString(16).padStart(2, '0');
           hexWrap.appendChild(el);
-          cells.push({ el, c, sig: isSig });
+          cells.push({ el, c });
         }
         const asc = document.createElement('span');
         asc.className = 'asc';
@@ -321,15 +374,15 @@
         row.append(off, hexWrap, asc);
         dumpEl.appendChild(row);
         ascEls.push(asc);
-        rows.push({ sig: !fault && spec.sig && r === spec.sig.row ? spec.sig.col : -1, bytes });
+        rows.push({ bytes });
       }
       const tagEl = document.createElement('p');
       tagEl.className = 'dtag';
       tagEl.textContent = spec.tag;
-      tagEl.style.opacity = '0';
       dumpEl.appendChild(tagEl);
-      dump = { cells, ascEls, rows, tag: spec.tag, start: t + 250, fault: !!fault };
+      dump = { cells, ascEls, rows, start: t + 350, fault: !!fault };
       dumpEl.classList.add('show');
+      scanbar.style.left = '-20px';
     }
     function hideDump() {
       dumpEl.classList.remove('show');
@@ -337,37 +390,211 @@
     }
     let dumpLitCol = -1;
     function scanUpdate(t: number) {
-      if (!dump || dump.start < 0 || t < dump.start) return;
-      const p = Math.min((t - dump.start) / (dump.fault ? 900 : 1600), 1);
-      const lim = dump.fault ? p * 8 * 0.3 : p * 8;
-      const col = Math.floor(lim);
+      if (!dump || t < dump.start) return;
+      const p = Math.min((t - dump.start) / (dump.fault ? 1100 : 2100), 1);
+      const q = ease(p);
+      const span = dumpEl.clientWidth - 16;
+      scanbar.style.left = (q * span - 8) + 'px';
+      const col = Math.floor(q * 8);
       if (col !== dumpLitCol || p >= 1) {
         dumpLitCol = col;
         for (const cell of dump.cells) {
-          if (cell.c <= col && !cell.el.classList.contains('lit')) {
-            cell.el.classList.add('lit');
-            if (cell.sig && p > 0.2) cell.el.classList.add('sig');
-          }
+          if (cell.c <= col) cell.el.classList.add('lit');
         }
         dump.ascEls.forEach((el, r) => {
           const row = dump!.rows[r];
           if (dump!.fault) { el.textContent = '·'.repeat(8); return; }
-          const s = row.bytes.map((b, c) => {
+          el.textContent = row.bytes.map((b, c) => {
             if (b === null) return '·';
-            const done = c <= col;
             const ch = b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : '·';
-            return done ? ch : '·';
+            return c <= col ? ch : '·';
           }).join('');
-          el.textContent = s;
-          if (row.sig >= 0 && col >= row.sig + 1) el.classList.add('lit');
+          if (row.bytes.some((b) => b !== null)) el.classList.add('lit');
         });
         const tagEl = dumpEl.querySelector('.dtag') as HTMLElement | null;
         if (tagEl) tagEl.style.opacity = p >= 1 ? '1' : '0';
+        if (p >= 1) scanbar.style.left = '-20px';
       }
     }
 
-    // ── camera + lifecycle ───────────────────────────────────────
-    let mx = 0, my = 0;
+    // ── walk plan ────────────────────────────────────────────────
+    // One cycle = 8500ms. The mote enters at cycle+300, swims right with
+    // a slow vertical wander, pauses at the four pulse points (levels
+    // consulted, readout appends the real index), then dives to the
+    // waterline where the page settles and the hex scan runs. A miss
+    // walk meets the hole in the stream instead: scatter, #PF, dark.
+    const CYCLE = 9300;
+    let wi = 0;
+    let cycleStart = performance.now() + 900;
+    let lastCycleT = -1;
+    let trailInit = false;
+    let dumpShownFor = -1;
+
+    function motePos(cycleT: number, walk: { va: number; miss?: number }) {
+      // enter/ease across, wander on a slow sine, dive at the end
+      const miss = walk.miss !== undefined;
+      const travelEnd = miss ? 4100 : 5600;
+      const p = Math.min(Math.max((cycleT - 300) / (travelEnd - 300), 0), 1);
+      const q = miss ? easeOut(p) : ease(p);
+      const x = -21 + q * (miss ? 21.5 : 34.5);
+      let y = 0.7 * Math.sin(x * 0.24 + 1.3);
+      if (!miss && cycleT > 5600) {
+        const dp = Math.min((cycleT - 5600) / 1000, 1);
+        const dx = ease(dp);
+        y = y * (1 - dx) + (WATER + 0.35) * dx;
+      }
+      return { x, y, visible: cycleT >= 300 && cycleT <= (miss ? 4800 : 6900) };
+    }
+
+    function tick(now: number) {
+      const cycleT = now - cycleStart;
+      let prevT = lastCycleT;
+      lastCycleT = cycleT;
+      if (cycleT < 0 || prevT < 0 || prevT > cycleT) {
+        // before first cycle, or the cycle just wrapped
+        requestAnimationFrame(tick);
+        return;
+      }
+      const walk = WALKS[wi];
+      const miss = walk.miss !== undefined;
+      const indices = LEVEL_NAMES.map((_, i) => idxOf(walk.va, 39 - i * 9));
+
+      if (cycleT < 0) {
+        requestAnimationFrame(tick);
+        return;
+      }
+
+      // cycle start: new address
+      if (cycleT < 40) {
+        elVa.style.opacity = '0';
+        elPath.style.opacity = '0';
+        riverUniforms.uHole.value.set(0, 0, 0, 0);
+      } else if (cycleT < 340 && elVa.style.opacity !== '1') {
+        elVa.textContent = hex(walk.va);
+        elPath.innerHTML = 'cr3 &rarr;';
+        elVa.style.opacity = '1';
+        elPath.style.opacity = '1';
+        if (miss) {
+          // the hole opens before the mote arrives
+          riverUniforms.uHole.value.set(PULSE_X[2] + 2.2, 0.4, -1, 1);
+        }
+      }
+
+      // mote position + wake
+      const mp = motePos(cycleT, walk);
+      mote.visible = mp.visible && !(miss && cycleT > 4300);
+      mote.position.set(mp.x, mp.y, 0.5);
+      const moteColor = miss && cycleT > 3900 ? CRIT : SKY;
+      mote.material.color.setHex(moteColor);
+      moteMatOpacity(cycleT, miss);
+      riverUniforms.uMote.value.set(mp.x, mp.y, 0, mote.visible ? 0.5 : 0);
+      riverUniforms.uMoteColor.value.setHex(moteColor);
+
+      // trail follows
+      if (mp.visible) {
+        if (!trailInit) {
+          for (let i = 0; i < TRAIL; i++) { trailPos[i * 3] = mp.x; trailPos[i * 3 + 1] = mp.y; trailPos[i * 3 + 2] = 0.5; }
+          trailInit = true;
+        }
+        trailPos.copyWithin(3, 0, (TRAIL - 1) * 3);
+        trailPos[0] = mp.x; trailPos[1] = mp.y; trailPos[2] = 0.5;
+        trailGeo.attributes.position.needsUpdate = true;
+      }
+      trail.material.opacity = mp.visible ? 0.7 : 0;
+
+      // level pulses: pause-ish moments where the mote reads a level
+      const pulseTimes = miss ? [900, 2200, 3900] : [1300, 2550, 3800, 5050];
+      pulseTimes.forEach((pt, i) => {
+        if (prevT < pt && cycleT >= pt) {
+          const px = miss ? PULSE_X[i] + (i === 2 ? 2.2 : 0) : PULSE_X[i];
+          const py = mote.position.y;
+          ring(px, py, miss && i === 2 ? CRIT : SKY, now);
+          const label = LEVEL_NAMES[i];
+          const cellIdx = indices[i];
+          if (miss && i === 2) {
+            elPath.innerHTML += ` &rarr; <span class="miss">${label}[${cellIdx}] not present</span>`;
+          } else {
+            elPath.innerHTML += (i === 0 ? '' : ' &rarr; ') + esc(`${label}[${cellIdx}]`);
+          }
+          void px;
+        }
+      });
+
+      // dive: the mote settles, the page lands, the hex scan runs
+      if (!miss && cycleT >= 6300 && dumpShownFor !== wi) {
+        dumpShownFor = wi;
+        const physAddr = ((scramble(indices) & 0xffffffffff) * 4096) + (walk.va % 4096);
+        elPath.innerHTML += ` &rarr; <span class="phys">page @ ${hex(physAddr)}</span>`;
+        showDump(wi, cycleT, false);
+        riverUniforms.uSplash.value.set(15.5, WATER, 0, 1);
+        ring(15.5, WATER + 0.3, GREEN, now);
+      }
+      if (miss && cycleT >= 4300 && dumpShownFor !== wi) {
+        dumpShownFor = wi;
+        showDump(wi, cycleT, true);
+      }
+      if (cycleT >= (miss ? 7600 : 8250) && dump) {
+        const tagEl = dumpEl.querySelector('.dtag') as HTMLElement | null;
+        if (tagEl) tagEl.style.opacity = '0';
+      }
+
+      scanUpdate(cycleT);
+
+      // rings expand and fade
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const r = rings[i];
+        const age = (now - r.born) / 1000;
+        if (age >= 1.15) {
+          scene.remove(r.s);
+          r.s.material.dispose();
+          rings.splice(i, 1);
+          continue;
+        }
+        const q = ease(Math.min(age / 1.15, 1));
+        r.s.scale.setScalar(0.5 + q * 3.4);
+        r.s.material.opacity = 0.55 * (1 - q);
+      }
+
+      // decay uniforms
+      riverUniforms.uSplash.value.w *= 0.985;
+      riverUniforms.uMote.value.w = mote.visible ? 0.5 : riverUniforms.uMote.value.w * 0.9;
+
+      // cycle advance
+      if (cycleT >= CYCLE) {
+        wi = (wi + 1) % WALKS.length;
+        cycleStart = now + 400;
+        lastCycleT = -1;
+        trailInit = false;
+        dumpShownFor = -1;
+        dumpLitCol = -1;
+        hideDump();
+        riverUniforms.uHole.value.w = 0;
+      }
+
+      const az = mx * 0.1;
+      camera.position.set(az * 3, -my * 0.7, 14);
+      camera.lookAt(0, 0, 0);
+      renderer.render(scene, camera);
+
+      if (bandVisible && !document.hidden) requestAnimationFrame(tick);
+    }
+
+    function moteMatOpacity(cycleT: number, miss: boolean) {
+      let o = 1;
+      if (cycleT < 600) o = Math.min(cycleT / 600, 1);
+      if (miss && cycleT > 3900) o = Math.max(1 - (cycleT - 3900) / 700, 0);
+      if (!miss && cycleT > 6300) o = Math.max(1 - (cycleT - 6300) / 900, 0.25);
+      mote.material.opacity = o;
+    }
+    function scramble(idx: number[]): number {
+      let v = 0x1234;
+      for (const x of idx) v = (v * 31 + x) % 0xffffffffff;
+      return v;
+    }
+    function esc(s: string) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+    // ── lifecycle ────────────────────────────────────────────────
+    let mx = 0, my = 0, bandVisible = true;
     window.addEventListener('pointermove', (e) => {
       mx = (e.clientX / window.innerWidth) * 2 - 1;
       my = (e.clientY / window.innerHeight) * 2 - 1;
@@ -379,172 +606,19 @@
     };
     resize();
     window.addEventListener('resize', resize);
-
-    let bandVisible = true;
     new IntersectionObserver(([e]) => { bandVisible = e.isIntersecting; }).observe(canvas);
-
-    // ── walk plan: a flat, declarative timeline per address ──────
-    const V3 = THREE.Vector3;
-    const targetPos = (levelIdx: number, cellIdx: number) => {
-      const [x, z] = cellXZ(cellIdx);
-      return new V3(x, levelObjs[levelIdx].y + 0.2, z);
-    };
-
-    interface Action { t: number; run: (ctx: WalkCtx) => void }
-    interface WalkCtx { va: number; miss?: number; indices: number[] }
-
-    function buildWalk(walk: { va: number; miss?: number }): { actions: Action[]; end: number } {
-      const indices = LEVELS.map((L) => idxOf(walk.va, L.shift));
-      const actions: Action[] = [];
-      let t = 500;
-      actions.push({ t: 0, run: (c) => {
-        elVa.textContent = hex(c.va);
-        elPath.innerHTML = 'cr3 &rarr;';
-        physMat.uniforms.uWave.value = 0;
-      }});
-      for (let i = 0; i < 4; i++) {
-        const levelIdx = i;
-        actions.push({ t, run: (c) => {
-          const from = levelIdx === 0 ? cr3.position.clone() : targetPos(levelIdx - 1, c.indices[levelIdx - 1]);
-          const to = targetPos(levelIdx, c.indices[levelIdx]);
-          const mid = from.clone().lerp(to, 0.5);
-          mid.y += 0.9;
-          beamGeo.setFromPoints([from, mid, to]);
-          beamMat.opacity = 0.55;
-          beamMat.color.setHex(SKY);
-          beamAnim = { from, mid, to, start: t, dur: 620 };
-        }});
-        t += 620;
-        const isMiss = walk.miss !== undefined && walk.miss === levelIdx;
-        actions.push({ t, run: (c) => {
-          const [x, z] = cellXZ(c.indices[levelIdx]);
-          hi.position.set(x, levelObjs[levelIdx].y + 0.2, z);
-          hiGlow.position.copy(hi.position);
-          if (isMiss) {
-            hi.material.color.setHex(CRIT);
-            hiGlow.material.color.setHex(CRIT);
-            beamMat.color.setHex(CRIT);
-            elPath.innerHTML += ` &rarr; <span class="miss">${esc(LEVELS[levelIdx].name)}[${c.indices[levelIdx]}] not present</span>`;
-          } else {
-            hi.material.color.setHex(SKY);
-            hiGlow.material.color.setHex(SKY);
-            elPath.innerHTML += (levelIdx === 0 ? '' : ' &rarr; ') + esc(`${LEVELS[levelIdx].name}[${c.indices[levelIdx]}]`);
-          }
-        }});
-        t += isMiss ? 500 : 230;
-        if (isMiss) {
-          t += 500;
-          actions.push({ t, run: () => {
-            elPath.innerHTML += ' <span class="miss">&rarr; #PF</span>';
-            showDump(wi, t, true);
-          }});
-          t += 1600;
-          return { actions, end: t };
-        }
-      }
-      // pt -> physical frame
-      actions.push({ t, run: (c) => {
-        const from = targetPos(3, c.indices[3]);
-        const to = new V3(0, PHYS_Y + 0.4, 0);
-        const mid = from.clone().lerp(to, 0.5);
-        mid.y += 0.8;
-        beamGeo.setFromPoints([from, mid, to]);
-        beamMat.opacity = 0.55;
-        beamMat.color.setHex(SKY);
-        beamAnim = { from, mid, to, start: t, dur: 700 };
-      }});
-      t += 700;
-      const physAddr = (c2n(indices) & 0xffffffffff) * 4096 + (walk.va % 4096);
-      actions.push({ t, run: (c) => {
-        physMat.uniforms.uWave.value = 0.001;
-        waveStart = t;
-        hi.material.color.setHex(GREEN);
-        hiGlow.material.color.setHex(GREEN);
-        elPath.innerHTML += ` &rarr; <span class="phys">page @ ${hex(physAddr)}</span>`;
-        showDump(wi, t, false);
-      }});
-      t += 2600;
-      return { actions, end: t };
-
-      function c2n(idx: number[]): number {
-        // scramble the table indices into a plausible physical base
-        let v = 0x1234;
-        for (const x of idx) v = (v * 31 + x) % 0xffffffffff;
-        return v;
-      }
-    }
-
-    let beamAnim: { from: V3; mid: V3; to: V3; start: number; dur: number } | null = null;
-    let waveStart = -1;
-
-    // ── loop ─────────────────────────────────────────────────────
-    let wi = 0;
-    let plan = buildWalk(WALKS[0]);
-    let walkStart = performance.now() + 800;
-    let ai = 0;
-    let last = performance.now();
-
-    function tick(now: number) {
-      if (now >= walkStart) {
-        const t = now - walkStart;
-        while (ai < plan.actions.length && plan.actions[ai].t <= t) {
-          plan.actions[ai].run({ va: WALKS[wi].va, miss: WALKS[wi].miss, indices: LEVELS.map((L) => idxOf(WALKS[wi].va, L.shift)) });
-          ai++;
-        }
-        if (beamAnim) {
-          const p = Math.min((t - beamAnim.start) / beamAnim.dur, 1);
-          const q = p * p * (3 - 2 * p);
-          spark.position
-            .addScaledVector(beamAnim.from, (1 - q) * (1 - q))
-            .addScaledVector(beamAnim.mid, 2 * (1 - q) * q)
-            .addScaledVector(beamAnim.to, q * q);
-          spark.material.opacity = 0.95 * (1 - p * 0.25);
-          if (p >= 1) { beamAnim = null; beamMat.opacity = 0; spark.material.opacity = 0; }
-        }
-        if (waveStart >= 0) {
-          physMat.uniforms.uWave.value = Math.min((t - waveStart) / 1400, 1.2);
-        }
-        scanUpdate(t);
-        if (ai >= plan.actions.length && t >= plan.end) {
-          wi = (wi + 1) % WALKS.length;
-          plan = buildWalk(WALKS[wi]);
-          walkStart = now + 400;
-          ai = 0;
-          beamAnim = null;
-          waveStart = -1;
-          hideDump();
-          dumpLitCol = -1;
-        }
-      }
-
-      const pulse = 1 + Math.sin(now / 180) * 0.08;
-      hi.scale.setScalar(pulse);
-      hiGlow.scale.setScalar(1.6 * pulse);
-      physMat.uniforms.uTime.value = now / 1000;
-
-      const az = 0.42 * Math.sin(now / 9000) + mx * 0.22;
-      camera.position.set(Math.sin(az) * 12.8 + 1.4, 5.4 - my * 0.8, Math.cos(az) * 12.8);
-      camera.lookAt(1.4, -1.2, 0);
-      renderer.render(scene, camera);
-      if (bandVisible && !document.hidden) requestAnimationFrame(tick);
-    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) { lastNow = performance.now(); requestAnimationFrame(tick); }
+    });
 
     if (reduced) {
-      const cellIdx = idxOf(WALKS[0].va, LEVELS[2].shift);
-      const [x, z] = cellXZ(cellIdx);
-      hi.position.set(x, levelObjs[2].y + 0.2, z);
-      hiGlow.position.copy(hi.position);
       elVa.textContent = hex(WALKS[0].va);
-      elPath.innerHTML = 'cr3 &rarr; pml4[1] &rarr; pdpt[1] &rarr; <span class="miss">pd[233]</span>';
-      camera.position.set(4.6, 5.6, 12.4);
-      camera.lookAt(1.4, -1.2, 0);
+      elPath.innerHTML = 'cr3 &rarr; pml4[1] &rarr; pdpt[1] &rarr; pd[233] &rarr; pte[185]';
+      camera.position.set(0, 0, 14);
       renderer.render(scene, camera);
       return;
     }
 
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) { last = performance.now(); requestAnimationFrame(tick); }
-    });
     requestAnimationFrame(tick);
   };
 
