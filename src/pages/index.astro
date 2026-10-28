@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import PageWalk from '../components/PageWalk.astro';
 import { readingTime, postHref, byDateDesc, isoDate, slugifyTag } from '../utils';
 import type { CollectionEntry } from 'astro:content';
 
@@ -94,6 +95,8 @@ const featSym = symbol(featured);
 const featCat = classify(featured);
 ---
 <BaseLayout title="Threat Unpacked">
+  <PageWalk />
+
   <div class="wrap-wide app">
 
     <!-- Functions window, grouped by segment -->
