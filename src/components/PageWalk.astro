@@ -5,6 +5,7 @@
     <p class="mmu-line"><span class="mmu-k">va&nbsp;&nbsp;</span><span class="mmu-va" id="pw-va">resolving&hellip;</span></p>
     <p class="mmu-line"><span class="mmu-k">walk</span> <span id="pw-path" class="mmu-path">cr3 &rarr;</span></p>
   </div>
+  <div class="pagedump" id="pw-dump" aria-hidden="true"></div>
 </section>
 
 <style>
@@ -47,6 +48,40 @@
   .mmu-path { color: var(--accent, #7dcfff); }
   .mmu-path .miss { color: var(--crit, #f7768e); }
   .mmu-path .phys { color: var(--accent2, #9ece6a); }
+  .pagedump {
+    position: absolute;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%) translateY(6px);
+    z-index: 2;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    line-height: 1.7;
+    color: var(--ink-soft);
+    pointer-events: none;
+    background: rgba(11, 14, 20, 0.78);
+    border: 1px solid #1c2536;
+    border-radius: 4px;
+    padding: 0.55rem 0.8rem;
+    opacity: 0;
+    transition: opacity 0.45s ease, transform 0.45s ease;
+  }
+  .pagedump.show { opacity: 1; transform: translateY(-50%); }
+  /* dump rows are built at runtime, so these must be global */
+  :global(.pagedump .drow) { margin: 0; display: flex; align-items: center; gap: 0.7rem; white-space: pre; }
+  :global(.pagedump .off) { color: var(--muted); }
+  :global(.pagedump .hex) { display: flex; gap: 0.55ch; }
+  :global(.pagedump .b) { color: #2e3b55; transition: color 0.15s; min-width: 2ch; text-align: center; }
+  :global(.pagedump .b.lit) { color: var(--ink, #c4cfdf); }
+  :global(.pagedump .b.sig) { color: #0b0e14; background: var(--accent2, #9ece6a); border-radius: 2px; font-weight: 600; }
+  :global(.pagedump .b.na) { color: var(--crit, #f7768e); }
+  :global(.pagedump .asc) { color: #2e3b55; min-width: 8ch; transition: color 0.15s; }
+  :global(.pagedump .asc.lit) { color: var(--accent, #7dcfff); }
+  :global(.pagedump .dtag) { margin: 0.3rem 0 0; color: var(--accent2, #9ece6a); }
+  :global(.pagedump.abort .dtag) { color: var(--crit, #f7768e); }
+  @media (max-width: 1020px) {
+    .pagedump { display: none; }
+  }
 </style>
 
 <script>
@@ -225,6 +260,102 @@
     const elPath = document.getElementById('pw-path')!;
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
+    // ── page dump: hex scan of whatever page the walk landed on ──
+    const DUMPS = [
+      { seed: 11, sig: { row: 0, col: 0, len: 2, bytes: [0x4d, 0x5a] }, tag: 'sig: MZ · dos header' },
+      { seed: 29, sig: { row: 4, col: 3, len: 4, bytes: [0x50, 0x72, 0x6f, 0x63] }, tag: 'pool tag: Proc' },
+      { seed: 47, sig: { row: 2, col: 2, len: 4, bytes: [0x01, 0x00, 0x00, 0x00] }, tag: 'dpapi blob' },
+      { seed: 65, fault: true, tag: '#PF · page not resident' },
+    ];
+    const dumpEl = document.getElementById('pw-dump')!;
+    let dump: {
+      cells: { el: HTMLElement; c: number; sig: boolean }[];
+      ascEls: HTMLElement[];
+      rows: { sig: number; bytes: (number | null)[] }[];
+      tag: string;
+      start: number;
+      fault: boolean;
+    } | null = null;
+
+    function showDump(wi: number, t: number, fault: boolean) {
+      const spec = DUMPS[wi % DUMPS.length];
+      dumpEl.innerHTML = '';
+      dumpEl.classList.toggle('abort', !!fault);
+      let x = spec.seed * 2654435761 % 2147483647;
+      const rnd = () => (x = (x * 48271) % 2147483647) & 0xff;
+      const cells: { el: HTMLElement; c: number; sig: boolean }[] = [];
+      const ascEls: HTMLElement[] = [];
+      const rows: { sig: number; bytes: (number | null)[] }[] = [];
+      for (let r = 0; r < 8; r++) {
+        const row = document.createElement('p');
+        row.className = 'drow';
+        const off = document.createElement('span');
+        off.className = 'off';
+        off.textContent = (r * 8).toString(16).padStart(4, '0');
+        const hexWrap = document.createElement('span');
+        hexWrap.className = 'hex';
+        const bytes: (number | null)[] = [];
+        for (let c = 0; c < 8; c++) {
+          const isSig = !fault && spec.sig && r === spec.sig.row && c >= spec.sig.col && c < spec.sig.col + spec.sig.len;
+          const b = fault ? null : (isSig ? spec.sig.bytes![c - spec.sig.col] : rnd());
+          bytes.push(b);
+          const el = document.createElement('span');
+          el.className = 'b' + (isSig ? ' sig' : '');
+          el.textContent = fault ? '??' : (b as number).toString(16).padStart(2, '0');
+          hexWrap.appendChild(el);
+          cells.push({ el, c, sig: isSig });
+        }
+        const asc = document.createElement('span');
+        asc.className = 'asc';
+        asc.textContent = '·'.repeat(8);
+        row.append(off, hexWrap, asc);
+        dumpEl.appendChild(row);
+        ascEls.push(asc);
+        rows.push({ sig: !fault && spec.sig && r === spec.sig.row ? spec.sig.col : -1, bytes });
+      }
+      const tagEl = document.createElement('p');
+      tagEl.className = 'dtag';
+      tagEl.textContent = spec.tag;
+      tagEl.style.opacity = '0';
+      dumpEl.appendChild(tagEl);
+      dump = { cells, ascEls, rows, tag: spec.tag, start: t + 250, fault: !!fault };
+      dumpEl.classList.add('show');
+    }
+    function hideDump() {
+      dumpEl.classList.remove('show');
+      dump = null;
+    }
+    let dumpLitCol = -1;
+    function scanUpdate(t: number) {
+      if (!dump || dump.start < 0 || t < dump.start) return;
+      const p = Math.min((t - dump.start) / (dump.fault ? 900 : 1600), 1);
+      const lim = dump.fault ? p * 8 * 0.3 : p * 8;
+      const col = Math.floor(lim);
+      if (col !== dumpLitCol || p >= 1) {
+        dumpLitCol = col;
+        for (const cell of dump.cells) {
+          if (cell.c <= col && !cell.el.classList.contains('lit')) {
+            cell.el.classList.add('lit');
+            if (cell.sig && p > 0.2) cell.el.classList.add('sig');
+          }
+        }
+        dump.ascEls.forEach((el, r) => {
+          const row = dump!.rows[r];
+          if (dump!.fault) { el.textContent = '·'.repeat(8); return; }
+          const s = row.bytes.map((b, c) => {
+            if (b === null) return '·';
+            const done = c <= col;
+            const ch = b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : '·';
+            return done ? ch : '·';
+          }).join('');
+          el.textContent = s;
+          if (row.sig >= 0 && col >= row.sig + 1) el.classList.add('lit');
+        });
+        const tagEl = dumpEl.querySelector('.dtag') as HTMLElement | null;
+        if (tagEl) tagEl.style.opacity = p >= 1 ? '1' : '0';
+      }
+    }
+
     // ── camera + lifecycle ───────────────────────────────────────
     let mx = 0, my = 0;
     window.addEventListener('pointermove', (e) => {
@@ -295,6 +426,7 @@
           t += 500;
           actions.push({ t, run: () => {
             elPath.innerHTML += ' <span class="miss">&rarr; #PF</span>';
+            showDump(wi, t, true);
           }});
           t += 1600;
           return { actions, end: t };
@@ -319,6 +451,7 @@
         hi.material.color.setHex(GREEN);
         hiGlow.material.color.setHex(GREEN);
         elPath.innerHTML += ` &rarr; <span class="phys">page @ ${hex(physAddr)}</span>`;
+        showDump(wi, t, false);
       }});
       t += 2600;
       return { actions, end: t };
@@ -361,6 +494,7 @@
         if (waveStart >= 0) {
           physMat.uniforms.uWave.value = Math.min((t - waveStart) / 1400, 1.2);
         }
+        scanUpdate(t);
         if (ai >= plan.actions.length && t >= plan.end) {
           wi = (wi + 1) % WALKS.length;
           plan = buildWalk(WALKS[wi]);
@@ -368,6 +502,8 @@
           ai = 0;
           beamAnim = null;
           waveStart = -1;
+          hideDump();
+          dumpLitCol = -1;
         }
       }
 
