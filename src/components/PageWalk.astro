@@ -79,8 +79,18 @@
   :global(.pagedump .asc.lit) { color: var(--accent, #7dcfff); }
   :global(.pagedump .dtag) { margin: 0.3rem 0 0; color: var(--accent2, #9ece6a); }
   :global(.pagedump.abort .dtag) { color: var(--crit, #f7768e); }
+  /* small screens: compact pane, bottom-right, still visible */
   @media (max-width: 1020px) {
-    .pagedump { display: none; }
+    .pagedump {
+      top: auto;
+      bottom: 0.6rem;
+      right: 0.75rem;
+      transform: none;
+      font-size: 0.56rem;
+      padding: 0.4rem 0.5rem;
+      background: rgba(11, 14, 20, 0.88);
+    }
+    .pagedump.show { transform: none; }
   }
 </style>
 
