@@ -46,12 +46,11 @@
   }
   .mmu-line { margin: 0; white-space: nowrap; }
   .mmu-k { color: var(--muted); }
-  .mmu-va { color: var(--num, #e0af68); transition: opacity 0.4s ease; }
-  .mmu-path { color: var(--accent, #7dcfff); transition: opacity 0.4s ease; }
+  .mmu-va { color: var(--num, #e0af68); transition: opacity 0.45s ease; }
+  .mmu-path { color: var(--accent, #7dcfff); transition: opacity 0.45s ease; }
   .mmu-path .miss { color: var(--crit, #f7768e); }
   .mmu-path .phys { color: var(--accent2, #9ece6a); }
 
-  /* page dump pane: runtime-built rows, hence :global */
   .pagedump {
     position: absolute;
     right: 1.25rem;
@@ -68,7 +67,7 @@
     border-radius: 4px;
     padding: 0.55rem 0.8rem;
     opacity: 0;
-    transition: opacity 0.6s ease, transform 0.6s ease;
+    transition: opacity 0.9s ease, transform 0.9s ease;
     overflow: hidden;
   }
   .pagedump.show { opacity: 1; transform: translateY(-50%); }
@@ -92,7 +91,6 @@
   :global(.pagedump .dtag) { margin: 0.3rem 0 0; color: var(--accent2, #9ece6a); opacity: 0; transition: opacity 0.5s ease; }
   :global(.pagedump.abort .dtag) { color: var(--crit, #f7768e); }
 
-  /* small screens: compact pane, bottom-right */
   @media (max-width: 1020px) {
     .pagedump {
       top: auto;
@@ -108,15 +106,14 @@
 </style>
 
 <script>
-  // The memory river. The band is a slow stream of data; every few
-  // seconds the mmu gathers a handful of it into a bright mote that
-  // swims the width of the page, and where it pauses, a level of the
-  // page tables is consulted - cr3 -> PML4 -> PDPT -> PD -> PT -> a
-  // 4 KiB page that settles into the water below and dumps as hex.
-  // Once per round a walk reaches for a page that is not there: the
-  // stream has a hole, the mote scatters, #PF. Indices are real:
-  // each is (va >> shift) & 0x1FF of the address in the readout.
-  // Motion is continuous: noise flow, eased travel, no metronome.
+  // The memory river, seamless cut. The mote never despawns: it swims
+  // the width of the band on the surface (four pauses = four levels of
+  // the page walk, real indices in the readout), dives at the right
+  // shore, and swims back UNDERWATER while the page it landed on dumps
+  // as hex and the next address takes its place - so the cycle boundary
+  // happens out of sight and the loop reads as endless. Once per round
+  // a walk reaches for a page that is not there: the stream has a hole,
+  // the mote scatters into it, #PF. Indices are (va >> shift) & 0x1FF.
   const boot = async () => {
     const canvas = document.getElementById('pw-canvas') as HTMLCanvasElement | null;
     if (!canvas) return;
@@ -125,7 +122,7 @@
     const THREE = await import('three');
     let renderer: import('three').WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'low-power' });
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: 'low-power' });
     } catch {
       return;
     }
@@ -136,14 +133,16 @@
     const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
     camera.position.set(0, 0, 14);
 
-    const SKY = 0x7dcfff, GREEN = 0x9ece6a, AMBER = 0xe0af68, CRIT = 0xf7768e;
-    const W = 23;           // half-width of the river in world units
-    const WATER = -2.55;    // waterline where landed pages settle
+    const SKY = 0x7dcfff, GREEN = 0x9ece6a, AMBER = 0xe0af68, CRIT = 0xf7768e, DEEP = 0x3f5a75;
+    const W = 23;
+    const WATER = -2.55;
 
     const hex = (v: number) => '0x' + v.toString(16).toUpperCase().padStart(12, '0');
     const idxOf = (va: number, shift: number) => Math.floor(va / Math.pow(2, shift)) & 511;
     const ease = (p: number) => p * p * (3 - 2 * p);
     const easeOut = (p: number) => 1 - Math.pow(1 - p, 3);
+    const mixHex = (a: number, b: number, t: number) =>
+      new THREE.Color(a).lerp(new THREE.Color(b), Math.min(Math.max(t, 0), 1)).getHex();
 
     const WALKS: { va: number; miss?: number }[] = [
       { va: 0x00007ff61e4b9c40 },
@@ -157,7 +156,6 @@
     const elVa = document.getElementById('pw-va')!;
     const elPath = document.getElementById('pw-path')!;
 
-    // ── shared glow texture ──────────────────────────────────────
     const glowTex = (() => {
       const c = document.createElement('canvas'); c.width = c.height = 64;
       const g = c.getContext('2d')!;
@@ -183,7 +181,7 @@
       return t;
     })();
 
-    // ── the river: GPU-flowing particles ─────────────────────────
+    // ── the river ────────────────────────────────────────────────
     const N = 1150;
     const aSeed = new Float32Array(N);
     const aX0 = new Float32Array(N);
@@ -208,7 +206,7 @@
       aCol[i * 3 + 2] = base[2] * dim;
     }
     const riverGeo = new THREE.BufferGeometry();
-    riverGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3)); // unused, kept for three
+    riverGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
     riverGeo.setAttribute('aSeed', new THREE.BufferAttribute(aSeed, 1));
     riverGeo.setAttribute('aX0', new THREE.BufferAttribute(aX0, 1));
     riverGeo.setAttribute('aY0', new THREE.BufferAttribute(aY0, 1));
@@ -218,10 +216,10 @@
     riverGeo.setAttribute('aColor', new THREE.BufferAttribute(aCol, 3));
     const riverUniforms = {
       uTime: { value: 0 },
-      uMote: { value: new THREE.Vector4(0, 0, 0, 0) },   // xyz + push strength
+      uMote: { value: new THREE.Vector4(0, 0, 0, 0) },
       uMoteColor: { value: new THREE.Color(SKY) },
-      uHole: { value: new THREE.Vector4(0, 0, 0, 0) },   // xyz + strength
-      uSplash: { value: new THREE.Vector4(0, 0, 0, 0) }, // xyz + strength
+      uHole: { value: new THREE.Vector4(PULSE_X[2] + 2.2, 0.4, -1, 0) },
+      uSplash: { value: new THREE.Vector4(0, 0, 0, 0) },
     };
     const river = new THREE.Points(riverGeo, new THREE.ShaderMaterial({
       uniforms: riverUniforms,
@@ -247,15 +245,11 @@
           p.y = aY0 + sin(uTime * 0.35 + aSeed * 6.2831 + p.x * 0.14) * 0.5;
           p.z = aZ0 + cos(uTime * 0.28 + aSeed * 4.7 + p.y * 0.2) * 0.35;
 
-          // mote wake: gentle push away, tinted toward the mote
           vec3 dm = p - uMote.xyz;
-          float dm2 = dot(dm.xy, dm.xy);
-          float wake = uMote.w * exp(-dm2 * 0.55);
+          float wake = uMote.w * exp(-dot(dm.xy, dm.xy) * 0.55);
           p.xy += normalize(dm.xy + vec2(0.0001)) * wake * 0.5;
 
-          // the hole: not-present memory pushes the stream away and dims it
           vec3 dh = p - uHole.xyz;
-          float dh2 = dot(dh.xy, dh.xy);
           float hole = uHole.w * smoothstep(3.4, 0.4, length(dh.xy));
           p.xy += normalize(dh.xy + vec2(0.0001)) * hole * 0.9;
 
@@ -263,7 +257,6 @@
           vAlpha = (0.28 + 0.72 * (0.5 + 0.5 * sin(uTime * (0.4 + aSeed) + aSeed * 40.0))) * 0.85
                    * (1.0 - clamp(hole, 0.0, 0.85));
 
-          // landing splash: green lift near the waterline
           float ds = length(p.xy - uSplash.xy);
           vColor = mix(vColor, vec3(0.62, 0.81, 0.42), uSplash.w * exp(-ds * ds * 0.5) * 0.9);
           vAlpha += uSplash.w * exp(-ds * ds * 0.5) * 0.5;
@@ -286,7 +279,7 @@
     }));
     scene.add(river);
 
-    // ── the mote: bright walker with a fading trail ──────────────
+    // ── the mote + trail ─────────────────────────────────────────
     const mote = new THREE.Sprite(new THREE.SpriteMaterial({
       map: glowTex, color: SKY, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false,
@@ -304,12 +297,12 @@
     }
     trailGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3));
     const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({
-      vertexColors: true, transparent: true, opacity: 0.7,
+      vertexColors: true, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false,
     }));
     scene.add(trail);
 
-    // ── pulse rings: a level consulted ───────────────────────────
+    // ── pulse rings ──────────────────────────────────────────────
     const rings: { s: THREE.Sprite; born: number }[] = [];
     function ring(x: number, y: number, color: number, now: number) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -323,7 +316,7 @@
       rings.push({ s, born: now });
     }
 
-    // ── page dump (hex scan of the landing) ──────────────────────
+    // ── page dump pane ───────────────────────────────────────────
     const DUMPS = [
       { seed: 11, sig: { row: 0, col: 0, len: 2, bytes: [0x4d, 0x5a] }, tag: 'sig: MZ · dos header' },
       { seed: 29, sig: { row: 4, col: 3, len: 4, bytes: [0x50, 0x72, 0x6f, 0x63] }, tag: 'pool tag: Proc' },
@@ -417,81 +410,133 @@
       }
     }
 
-    // ── walk plan ────────────────────────────────────────────────
-    // One cycle = 8500ms. The mote enters at cycle+300, swims right with
-    // a slow vertical wander, pauses at the four pulse points (levels
-    // consulted, readout appends the real index), then dives to the
-    // waterline where the page settles and the hex scan runs. A miss
-    // walk meets the hole in the stream instead: scatter, #PF, dark.
+    // ── mote kinematics: one continuous loop ─────────────────────
+    // 300-5600  surface swim, left -> right (four level pulses)
+    // 5600-6600 dive at the right shore (y to the waterline)
+    // 6600-8600 underwater return, right -> left (dim, blue)
+    // 8600-9300 resurface at the left shore; next address already set
+    // miss: the swim stops at the hole (3800), the mote scatters,
+    // reforms underwater at 6600 and returns like everyone else.
+    function moteState(cycleT: number, walk: { va: number; miss?: number }) {
+      const miss = walk.miss !== undefined;
+      let x: number, y: number, sub = 0, alpha = 1;
+      if (miss) {
+        if (cycleT <= 3800) {
+          const p = Math.min(Math.max((cycleT - 300) / 3500, 0), 1);
+          x = -21 + ease(p) * 26.7;
+          y = 0.7 * Math.sin(x * 0.24 + 1.3);
+        } else if (cycleT <= 4600) {
+          const s = (cycleT - 3800) / 800;
+          x = 5.7 + Math.sin(s * 40) * 0.15;
+          y = 0.7 * Math.sin(5.7 * 0.24 + 1.3) + Math.sin(s * 30) * 0.1;
+          alpha = 1 - s;
+        } else if (cycleT <= 6600) {
+          x = 2.2; y = WATER - 0.12; sub = 1; alpha = 0;
+        } else if (cycleT <= 8600) {
+          const up = (cycleT - 6600) / 2000;
+          x = 2.2 - 23.2 * ease(up);
+          y = WATER - 0.12 + Math.sin(up * Math.PI * 3) * 0.05;
+          sub = 1; alpha = 1;
+        } else {
+          const rp = Math.min((cycleT - 8600) / 700, 1);
+          x = -21;
+          y = (WATER - 0.12) * (1 - easeOut(rp)) + 0.39 * easeOut(rp);
+          sub = 1 - easeOut(rp);
+        }
+        return { x, y, sub, alpha };
+      }
+      if (cycleT <= 5600) {
+        const p = Math.min(Math.max((cycleT - 300) / 5300, 0), 1);
+        x = -21 + ease(p) * 35;
+        y = 0.7 * Math.sin(x * 0.24 + 1.3);
+      } else if (cycleT <= 6600) {
+        const dp = (cycleT - 5600) / 1000;
+        x = 14 + 3.5 * ease(dp);
+        y = 0.7 * Math.sin(14 * 0.24 + 1.3) * (1 - dp) + (WATER - 0.05) * dp;
+        sub = dp;
+      } else if (cycleT <= 8600) {
+        const up = (cycleT - 6600) / 2000;
+        x = 17.5 - 38.5 * ease(up);
+        y = WATER - 0.12 + Math.sin(up * Math.PI * 3) * 0.05;
+        sub = 1;
+      } else {
+        const rp = Math.min((cycleT - 8600) / 700, 1);
+        x = -21;
+        y = (WATER - 0.12) * (1 - easeOut(rp)) + 0.39 * easeOut(rp);
+        sub = 1 - easeOut(rp);
+      }
+      return { x, y, sub, alpha };
+    }
+
+    // ── state + loop ─────────────────────────────────────────────
     const CYCLE = 9300;
     let wi = 0;
-    let cycleStart = performance.now() + 900;
-    let lastCycleT = -1;
-    let trailInit = false;
+    let cycleStart = performance.now() + 600;
+    let lastNow = performance.now();
+    const fired = new Set<string>();
     let dumpShownFor = -1;
+    let trailInit = false;
+    let holeW = 0;
 
-    function motePos(cycleT: number, walk: { va: number; miss?: number }) {
-      // enter/ease across, wander on a slow sine, dive at the end
-      const miss = walk.miss !== undefined;
-      const travelEnd = miss ? 4100 : 5600;
-      const p = Math.min(Math.max((cycleT - 300) / (travelEnd - 300), 0), 1);
-      const q = miss ? easeOut(p) : ease(p);
-      const x = -21 + q * (miss ? 21.5 : 34.5);
-      let y = 0.7 * Math.sin(x * 0.24 + 1.3);
-      if (!miss && cycleT > 5600) {
-        const dp = Math.min((cycleT - 5600) / 1000, 1);
-        const dx = ease(dp);
-        y = y * (1 - dx) + (WATER + 0.35) * dx;
-      }
-      return { x, y, visible: cycleT >= 300 && cycleT <= (miss ? 4800 : 6900) };
+    const indicesNow = () => LEVEL_NAMES.map((_, i) => idxOf(WALKS[wi].va, 39 - i * 9));
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    function scramble(idx: number[]): number {
+      let v = 0x1234;
+      for (const x of idx) v = (v * 31 + x) % 0xffffffffff;
+      return v;
     }
 
     function tick(now: number) {
-      const cycleT = now - cycleStart;
-      let prevT = lastCycleT;
-      lastCycleT = cycleT;
-      if (cycleT < 0 || prevT < 0 || prevT > cycleT) {
-        // before first cycle, or the cycle just wrapped
-        requestAnimationFrame(tick);
-        return;
-      }
+      const dt = Math.min((now - lastNow) / 1000, 0.05);
+      lastNow = now;
       const walk = WALKS[wi];
-      const miss = walk.miss !== undefined;
-      const indices = LEVEL_NAMES.map((_, i) => idxOf(walk.va, 39 - i * 9));
-
-      if (cycleT < 0) {
-        requestAnimationFrame(tick);
-        return;
+      let cycleT = now - cycleStart;
+      if (cycleT >= CYCLE) {
+        wi = (wi + 1) % WALKS.length;
+        cycleStart += CYCLE;
+        cycleT -= CYCLE;
+        fired.clear();
+        dumpShownFor = -1;
+        trailInit = false;
+        dumpLitCol = -1;
       }
+      const miss = walk.miss !== undefined;
+      const indices = indicesNow();
 
-      // cycle start: new address
-      if (cycleT < 40) {
-        elVa.style.opacity = '0';
-        elPath.style.opacity = '0';
-        riverUniforms.uHole.value.set(0, 0, 0, 0);
-      } else if (cycleT < 340 && elVa.style.opacity !== '1') {
-        elVa.textContent = hex(walk.va);
+      // the address swaps while the mote is underwater
+      if (cycleT >= 8850 && !fired.has('swap')) {
+        fired.add('swap');
+        elVa.style.opacity = '0.3';
+        elPath.style.opacity = '0.3';
+        const next = WALKS[(wi + 1) % WALKS.length];
+        elVa.textContent = hex(next.va);
         elPath.innerHTML = 'cr3 &rarr;';
+      }
+      if (cycleT >= 9150 && !fired.has('swapin')) {
+        fired.add('swapin');
         elVa.style.opacity = '1';
         elPath.style.opacity = '1';
-        if (miss) {
-          // the hole opens before the mote arrives
-          riverUniforms.uHole.value.set(PULSE_X[2] + 2.2, 0.4, -1, 1);
-        }
       }
 
-      // mote position + wake
-      const mp = motePos(cycleT, walk);
-      mote.visible = mp.visible && !(miss && cycleT > 4300);
-      mote.position.set(mp.x, mp.y, 0.5);
-      const moteColor = miss && cycleT > 3900 ? CRIT : SKY;
-      mote.material.color.setHex(moteColor);
-      moteMatOpacity(cycleT, miss);
-      riverUniforms.uMote.value.set(mp.x, mp.y, 0, mote.visible ? 0.5 : 0);
-      riverUniforms.uMoteColor.value.setHex(moteColor);
+      // the hole breathes toward its target (open for miss walks only)
+      const holeTarget = miss ? 1 : 0;
+      holeW += (holeTarget - holeW) * Math.min(dt * 1.4, 1);
+      riverUniforms.uHole.value.set(PULSE_X[2] + 2.2, 0.4, -1, holeW);
 
-      // trail follows
-      if (mp.visible) {
+      // mote kinematics + presence
+      const mp = moteState(cycleT, walk);
+      mote.position.set(mp.x, mp.y, 0.5);
+      mote.visible = mp.alpha > 0.01;
+      const submerged = mp.sub;
+      mote.material.opacity = (0.45 + 0.55 * (1 - submerged)) * mp.alpha;
+      const hot = miss && cycleT >= 3900 && cycleT <= 4600;
+      const mcol = mixHex(hot ? CRIT : SKY, DEEP, submerged * 0.85);
+      mote.material.color.setHex(mcol);
+      riverUniforms.uMote.value.set(mp.x, mp.y, 0, (0.5 * (1 - submerged) + 0.08) * mp.alpha);
+      riverUniforms.uMoteColor.value.setHex(mcol);
+
+      // trail only while surfaced
+      if (submerged < 0.4 && mp.alpha > 0.3) {
         if (!trailInit) {
           for (let i = 0; i < TRAIL; i++) { trailPos[i * 3] = mp.x; trailPos[i * 3 + 1] = mp.y; trailPos[i * 3 + 2] = 0.5; }
           trailInit = true;
@@ -499,43 +544,48 @@
         trailPos.copyWithin(3, 0, (TRAIL - 1) * 3);
         trailPos[0] = mp.x; trailPos[1] = mp.y; trailPos[2] = 0.5;
         trailGeo.attributes.position.needsUpdate = true;
+        trail.material.opacity = 0.7;
+      } else {
+        trail.material.opacity = Math.max(trail.material.opacity - dt * 2, 0);
       }
-      trail.material.opacity = mp.visible ? 0.7 : 0;
 
-      // level pulses: pause-ish moments where the mote reads a level
-      const pulseTimes = miss ? [900, 2200, 3900] : [1300, 2550, 3800, 5050];
+      // the four level pulses, once each per cycle
+      const pulseTimes = [1300, 2550, 3800, 5050];
       pulseTimes.forEach((pt, i) => {
-        if (prevT < pt && cycleT >= pt) {
-          const px = miss ? PULSE_X[i] + (i === 2 ? 2.2 : 0) : PULSE_X[i];
-          const py = mote.position.y;
-          ring(px, py, miss && i === 2 ? CRIT : SKY, now);
-          const label = LEVEL_NAMES[i];
-          const cellIdx = indices[i];
-          if (miss && i === 2) {
-            elPath.innerHTML += ` &rarr; <span class="miss">${label}[${cellIdx}] not present</span>`;
-          } else {
-            elPath.innerHTML += (i === 0 ? '' : ' &rarr; ') + esc(`${label}[${cellIdx}]`);
-          }
-          void px;
+        const key = 'p' + i;
+        if (fired.has(key) || cycleT < pt) return;
+        fired.add(key);
+        ring(mote.position.x, mote.position.y, SKY, now);
+        if (miss && walk.miss === 2 && i === 2) {
+          elPath.innerHTML += ` &rarr; <span class="miss">${esc(LEVEL_NAMES[i])}[${indices[i]}] not present</span>`;
+        } else {
+          elPath.innerHTML += (i === 0 ? '' : ' &rarr; ') + esc(`${LEVEL_NAMES[i]}[${indices[i]}]`);
         }
       });
 
-      // dive: the mote settles, the page lands, the hex scan runs
+      // fault beat: scatter + #PF
+      if (miss && cycleT >= 4300 && !fired.has('pf')) {
+        fired.add('pf');
+        elPath.innerHTML += ' <span class="miss">&rarr; #PF</span>';
+      }
+
+      // landing: the page settles, the dump scans
       if (!miss && cycleT >= 6300 && dumpShownFor !== wi) {
         dumpShownFor = wi;
         const physAddr = ((scramble(indices) & 0xffffffffff) * 4096) + (walk.va % 4096);
         elPath.innerHTML += ` &rarr; <span class="phys">page @ ${hex(physAddr)}</span>`;
         showDump(wi, cycleT, false);
-        riverUniforms.uSplash.value.set(15.5, WATER, 0, 1);
-        ring(15.5, WATER + 0.3, GREEN, now);
+        riverUniforms.uSplash.value.set(15.8, WATER + 0.1, 0, 1);
+        ring(15.8, WATER + 0.25, GREEN, now);
       }
-      if (miss && cycleT >= 4300 && dumpShownFor !== wi) {
+      if (miss && cycleT >= 4650 && dumpShownFor !== wi) {
         dumpShownFor = wi;
         showDump(wi, cycleT, true);
       }
-      if (cycleT >= (miss ? 7600 : 8250) && dump) {
-        const tagEl = dumpEl.querySelector('.dtag') as HTMLElement | null;
-        if (tagEl) tagEl.style.opacity = '0';
+      // the dump fades during the underwater return, before the swap
+      if (cycleT >= 8600 && dump && !fired.has('dumpfade')) {
+        fired.add('dumpfade');
+        hideDump();
       }
 
       scanUpdate(cycleT);
@@ -555,43 +605,14 @@
         r.s.material.opacity = 0.55 * (1 - q);
       }
 
-      // decay uniforms
-      riverUniforms.uSplash.value.w *= 0.985;
-      riverUniforms.uMote.value.w = mote.visible ? 0.5 : riverUniforms.uMote.value.w * 0.9;
+      // splash decays
+      riverUniforms.uSplash.value.w = Math.max(riverUniforms.uSplash.value.w - dt * 0.7, 0);
 
-      // cycle advance
-      if (cycleT >= CYCLE) {
-        wi = (wi + 1) % WALKS.length;
-        cycleStart = now + 400;
-        lastCycleT = -1;
-        trailInit = false;
-        dumpShownFor = -1;
-        dumpLitCol = -1;
-        hideDump();
-        riverUniforms.uHole.value.w = 0;
-      }
-
-      const az = mx * 0.1;
-      camera.position.set(az * 3, -my * 0.7, 14);
+      camera.position.set(mx * 0.3, -my * 0.6, 14);
       camera.lookAt(0, 0, 0);
       renderer.render(scene, camera);
-
       if (bandVisible && !document.hidden) requestAnimationFrame(tick);
     }
-
-    function moteMatOpacity(cycleT: number, miss: boolean) {
-      let o = 1;
-      if (cycleT < 600) o = Math.min(cycleT / 600, 1);
-      if (miss && cycleT > 3900) o = Math.max(1 - (cycleT - 3900) / 700, 0);
-      if (!miss && cycleT > 6300) o = Math.max(1 - (cycleT - 6300) / 900, 0.25);
-      mote.material.opacity = o;
-    }
-    function scramble(idx: number[]): number {
-      let v = 0x1234;
-      for (const x of idx) v = (v * 31 + x) % 0xffffffffff;
-      return v;
-    }
-    function esc(s: string) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 
     // ── lifecycle ────────────────────────────────────────────────
     let mx = 0, my = 0, bandVisible = true;
@@ -610,6 +631,8 @@
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) { lastNow = performance.now(); requestAnimationFrame(tick); }
     });
+
+    elVa.textContent = hex(WALKS[0].va);
 
     if (reduced) {
       elVa.textContent = hex(WALKS[0].va);
